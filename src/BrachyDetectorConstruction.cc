@@ -84,12 +84,12 @@ BrachyDetectorConstruction::BrachyDetectorConstruction()
   phantomSizeY = 5.*cm;
   phantomSizeZ = 5.*cm;*/
 
-  phantomSizeX = 15.*cm ;//to match the mesh!!!!!see mac file!
-  phantomSizeY = 15.*cm;
-  phantomSizeZ = 15.*cm;
-  meshSizeX = 0.0;
-  meshSizeY = 0.0;
-  meshSizeZ = 0.0;
+  phantomSizeX = 5.*cm ;//to match the mesh!!!!!see mac file!...or automatically later
+  phantomSizeY = 5.*cm;
+  phantomSizeZ = 5.*cm;
+  //meshSizeX = 0.0;
+  //meshSizeY = 0.0;
+  //meshSizeZ = 0.0;
   
   // Define the sizes of the World volume containing the phantom
   worldSizeX = 4.0*m;
@@ -114,6 +114,40 @@ BrachyDetectorConstruction::~BrachyDetectorConstruction()
   delete pMaterial;
   delete factory;
   delete detectorMessenger;
+}
+
+/*
+run.mac files should be like this:
+# 1. Creezi mesh-ul de scoring si ii definesti dimensiunile dorite
+/score/create/boxMesh boxMesh_1
+/score/mesh/boxSize 15. 15. 15. cm
+/score/mesh/nBin 300 300 300
+
+# 2. Apelezi comanda ta custom. 
+# In acest moment se declanseaza C++-ul modificat: ia cei 15 cm si ii scrie in detector!
+/score/quantity/doseDeposit2 myDoseGy Gy
+
+# 3. Inchizi mesh-ul de scoring
+/score/close
+
+# 4. FORTEZI RECONSTRUCTIA GEOMETRIEI FIZICE
+# Geant4 executa din nou functia Construct() cu noile dimensiuni de 15 cm
+/run/initialize...........NOPE...no need for this!!!!!run.mac remain as they were....just /other/
+if not removed....well yields error. 
+Instead of deleting it, to assure compatbility with sprinboot server which write run.mac as it is...
+just dummy it...do nothing!!!!
+*/
+void BrachyDetectorConstruction::UpdatePhantomSize(G4double hx, G4double hy, G4double hz)
+{
+    // Actualizam variabilele interne cu dimensiunile primite de la mesh
+    phantomSizeX = hx;
+    phantomSizeY = hy;
+    phantomSizeZ = hz;
+
+    // NOTIFICARE CRITICA: Ii spunem lui Geant4 ca geometria fizica s-a modificat
+    G4RunManager::GetRunManager()->GeometryHasBeenModified();
+	//G4RunManager::GetRunManager()->ReinitializeGeometry();
+    G4cout << "--> Phantom geometry updated!!!" << G4endl;
 }
 
 G4VPhysicalVolume* BrachyDetectorConstruction::Construct()

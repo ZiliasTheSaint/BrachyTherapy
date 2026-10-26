@@ -52,6 +52,10 @@ int BrachyUserScoreWriter::meshX=0;
 int BrachyUserScoreWriter::meshY=0;
 int BrachyUserScoreWriter::meshZ=0;
 
+G4double BrachyUserScoreWriter::meshHalfX=0.0;
+G4double BrachyUserScoreWriter::meshHalfY=0.0;
+G4double BrachyUserScoreWriter::meshHalfZ=0.0;
+
 struct voxelDose {
   G4double xc;//center x-coordonate
   G4double yc;//center y-coordonate
@@ -102,10 +106,20 @@ BrachyUserScoreWriter::BrachyUserScoreWriter(): G4VScoreWriter() //call supercla
 
   iCall=0;
 
-  //meshX=fNMeshSegments[0];
-  //meshY=fNMeshSegments[1];
-  //meshZ=fNMeshSegments[2];
-//phantom = (BrachyDetectorConstruction*)
+  //NO NEED FOR OTHER MESSENGER COMMANDS...mesh taken directly from SUPERCLASS, i.e.
+  //we have to have in run.mac: /score/mesh/boxSize 15. 15. 15. cm
+  //and /score/mesh/nBin 300 300 300
+  //which are read by G4VScoreWriter automatically!
+  /*meshX=fNMeshSegments[0];
+  meshY=fNMeshSegments[1];
+  meshZ=fNMeshSegments[2];
+  G4cout << "@@@@inside BrachyUserScoreWriter...meshX="<<fNMeshSegments[0]
+           << G4endl;*/
+  //NOT HERE YOU IDIOT...in ScoreQuantityMessenger...here is just initaialization..is 0!!!!
+  //the dimensions are set via ScoreQuantityMessenger (PSDoseDeposition2 is also initialized there)by calling 
+  //BrachyUserScoreWriter::setMeshHalfSize(msize.x(), msize.y(), msize.z()); see ScoreQuantityMessenger line 105
+
+  //...old italian code:phantom = (BrachyDetectorConstruction*)
   //           G4RunManager::GetRunManager()->GetUserDetectorConstruction(); 
 }
 

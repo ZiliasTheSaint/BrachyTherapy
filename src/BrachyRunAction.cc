@@ -83,13 +83,24 @@ BrachyRunAction::~BrachyRunAction()
 void BrachyRunAction::BeginOfRunAction(const G4Run* aRun)
 { 	
 	phantom->PrintDetectorParameters();
-	if (phantom->getMeshSizeX()<=0. || phantom->getMeshSizeY()<=0. || phantom->getMeshSizeZ()<=0.)
+	/*if (phantom->getMeshSizeX()<=0. || phantom->getMeshSizeY()<=0. || phantom->getMeshSizeZ()<=0.)
 		G4cout << "WARNING: /other/mesh/boxSize was not set; voxel widths cannot be computed!" << G4endl;
 	else if (phantom->getMeshSizeX()>phantom->getPhantomSizeX() ||
 			 phantom->getMeshSizeY()>phantom->getPhantomSizeY() ||
 			 phantom->getMeshSizeZ()>phantom->getPhantomSizeZ())
 		G4cout << "WARNING: scoring mesh is larger than the phantom; voxels outside the phantom "
 			"are air and are overweighted by the renormalization!" << G4endl;
+*/
+	/*if (BrachyUserScoreWriter::getMeshHalfSizeX()>phantom->getPhantomSizeX() ||
+		BrachyUserScoreWriter::getMeshHalfSizeY()>phantom->getPhantomSizeY() ||
+		BrachyUserScoreWriter::getMeshHalfSizeZ()>phantom->getPhantomSizeZ())
+		G4cout << "WARNING: scoring mesh is larger than the phantom; voxels outside the phantom "
+			"are air and are overweighted by the renormalization!" << G4endl;
+
+NOT NEEDE ANYMORE...phantom is built/rebuilt via updatedGeometry from mesh!!
+A single source of truth!
+commands with /other/...just left in run.mac for springboot compatibility!!!!
+			*/
 
 	BrachyDetectorConstruction::nbEventInRun = aRun->GetNumberOfEventToBeProcessed();
 	//G4double rho = phantom->getPhantonDensity();
@@ -202,9 +213,15 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	//G4double voxelWidthY =2.0*(phantom->getPhantomSizeY())/nY;//1. *mm;
 	//G4double voxelWidthZ =2.0*(phantom->getPhantomSizeY())/nZ;//1. *mm;
 	//Claude ai->
-	G4double voxelWidthX =2.0*(phantom->getMeshSizeX())/nX;
-	G4double voxelWidthY =2.0*(phantom->getMeshSizeY())/nY;
-	G4double voxelWidthZ =2.0*(phantom->getMeshSizeZ())/nZ;
+	//G4double voxelWidthX =2.0*(phantom->getMeshSizeX())/nX;
+	//G4double voxelWidthY =2.0*(phantom->getMeshSizeY())/nY;
+	//G4double voxelWidthZ =2.0*(phantom->getMeshSizeZ())/nZ;
+	G4double voxelWidthX =2.0*BrachyUserScoreWriter::getMeshHalfSizeX()/nX;
+	G4double voxelWidthY =2.0*BrachyUserScoreWriter::getMeshHalfSizeY()/nY;
+	G4double voxelWidthZ =2.0*BrachyUserScoreWriter::getMeshHalfSizeZ()/nZ;
+
+	//G4cout<<"@@@@@@@@@getMeshSegment_X"<<nX<<G4endl;
+	//G4cout<<"@@@@@@@@@halfsize_X"<<BrachyUserScoreWriter::getMeshHalfSizeX()<<G4endl;
 
 	G4double voxelMaterialDensity = phantom->getPhantonDensity();
 	G4double voxelMass = voxelMaterialDensity*voxelWidthX*voxelWidthY*voxelWidthZ;//for renormalization
@@ -416,7 +433,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	} // x
 	*/
 	
-
+	//G4cout<<"Mesh X n: "<<BrachyUserScoreWriter::getMeshSegment_X()<<G4endl;
 	int nmm;
 	nmm= profileZ.size();
 	//G4double number = 1.0;//NO MEDIATION ...DOSE IS FROM ALL ADJACENT 9 CELLS!!!!!!!!!!!!!!!4.0;//4 beans around center  
@@ -438,7 +455,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	G4cout<<"Voxel center coordinate on a particular central axis and VOXEL DOSE [mGy]: "<<G4endl;	
 	//G4cout<<"z-axis"<<G4endl;
 	//G4cout<<"BEGIN_DATA"<<G4endl;
-	//vD.err is in %!!! errsum shoud be (in %): 100.0*SQRT(SUM(vD.err*vD.dose)^2)/SUM(vD.dose)
+	//vD.err is in %!!! errsum shoud be (in %): 100.0*SQRT(SUM(vD.err*vD.dose/100.0)^2)/SUM(vD.dose)
 	for (G4double z = minZ; z<=maxZ; z=z+voxelWidthZ){//1.0){//1 mm increment
 		sum = 0.0;errsum=0.0;
 		for(int i = 0; i < nmm; i++) {
@@ -450,7 +467,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 			}
 		}
 		//sum = sum /number;errsum = errsum /number;
-		sum = sum ;if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+		sum = sum ;if(sum!=0.0) errsum = std::min((std::sqrt(errsum) /sum),99.9);
 
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" z= "<<z<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
@@ -474,7 +491,7 @@ G4cout<<" z= "<<z<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 			}
 		}
 		//sum = sum /number;errsum = errsum /number;
-		sum = sum ;	if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+		sum = sum ;	if(sum!=0.0) errsum = std::min((std::sqrt(errsum) /sum),99.9);
 
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" y = "<<y<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
@@ -498,7 +515,7 @@ G4cout<<" y = "<<y<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 			}
 		}
 		//sum = sum /number;errsum = errsum /number;
-		sum = sum ;if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+		sum = sum ;if(sum!=0.0) errsum = std::min((std::sqrt(errsum) /sum),99.9);
 
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;

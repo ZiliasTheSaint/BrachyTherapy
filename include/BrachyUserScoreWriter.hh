@@ -49,7 +49,7 @@ public:
   virtual ~BrachyUserScoreWriter();
 
 public:
-  static G4int getMeshSegment_X(){
+  static G4int getMeshSegment_X(){//fNMeshSegments[0]
 	  return meshX;
   };
   static G4int getMeshSegment_Y(){
@@ -67,6 +67,12 @@ public:
   static void setMeshSegment_Z(G4int val){
 	  meshZ = val;
   };
+
+  //Claude
+  static void setMeshHalfSize(G4double x, G4double y, G4double z){ meshHalfX=x; meshHalfY=y; meshHalfZ=z; };
+  static G4double getMeshHalfSizeX(){ return meshHalfX; };
+  static G4double getMeshHalfSizeY(){ return meshHalfY; };
+  static G4double getMeshHalfSizeZ(){ return meshHalfZ; };
 
   // store a quantity into a file
   void DumpQuantityToFile(const G4String & psName, const G4String & fileName, const G4String & option);
@@ -92,6 +98,11 @@ private:
 	static G4int meshX;
 	static G4int meshY;
 	static G4int meshZ;
+
+	//claude:
+	static G4double meshHalfX;
+	static G4double meshHalfY;
+	static G4double meshHalfZ;
 };
 
 #endif

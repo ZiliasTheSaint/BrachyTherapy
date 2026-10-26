@@ -78,7 +78,12 @@ int main(int argc ,char ** argv)
 
 {
   ScoringManager::GetScoringManager(); // instanciate the interactive scoring manager
-	//new ScoringManager();
+  //also in this function the constructor new ScoringManager() is called.
+  //in constructor: ScoreQuantityMessenger is initialized!!!! 
+  //so we have access to commands like /score/quantity/.....
+  //Behind the scene, G4ScoringMessenger is also initialized by G4ScoringManager 
+  //So, we have access to macro /score/mesh/boxSize 15. 15. 15. cm
+  //and /score/mesh/nBin 300 300 300 here.
 
   G4RunManager* pRunManager = new G4RunManager;
 

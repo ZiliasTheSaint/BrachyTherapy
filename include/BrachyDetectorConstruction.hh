@@ -67,6 +67,8 @@ public:
   static G4double photonsPerDecay;   //=>Claude ai suma yield-urilor (fotoni emisi / dezintegrare)
   static G4double exposureTime;
   static G4int nbEventInRun;
+
+  void UpdatePhantomSize(G4double hx, G4double hy, G4double hz);
   
   /*void setPhantomSizeX(G4double val){
 	  phantomSizeX = val;
@@ -79,12 +81,12 @@ public:
   };*/
 
   //claude ->
-  void setMeshSizeX(G4double val){ meshSizeX = val; };
+  /*void setMeshSizeX(G4double val){ meshSizeX = val; };
   void setMeshSizeY(G4double val){ meshSizeY = val; };
   void setMeshSizeZ(G4double val){ meshSizeZ = val; };
   G4double getMeshSizeX(){ return meshSizeX; };
   G4double getMeshSizeY(){ return meshSizeY; };
-  G4double getMeshSizeZ(){ return meshSizeZ; };
+  G4double getMeshSizeZ(){ return meshSizeZ; };*/
   //----
 
   G4double getPhantomSizeX(){
@@ -121,9 +123,9 @@ private:
   G4double worldSizeY ; //World YSize
   G4double worldSizeZ ; //World XSize
 
-  G4double meshSizeX; //scoring mesh half-size X (from /other/mesh/boxSize)
-  G4double meshSizeY;
-  G4double meshSizeZ;
+  //G4double meshSizeX; //scoring mesh half-size X (from /other/mesh/boxSize)
+  //G4double meshSizeY;
+  //G4double meshSizeZ;
 
   BrachyDetectorMessenger* detectorMessenger; 
   BrachyMaterial* pMaterial;   

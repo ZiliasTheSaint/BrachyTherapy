@@ -38,6 +38,7 @@
 class PSDoseDeposition2 : public PSDoseDeposition2Core
 {
 public:
+	//with default members which will be overriden!!!!!!!
   PSDoseDeposition2(G4String name, 
 			G4int ni=1,G4int nj=1, G4int nk=1,
 			G4int depi=2, G4int depj=1, G4int depk=0);

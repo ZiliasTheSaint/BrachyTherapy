@@ -56,12 +56,22 @@ PSDoseDeposition2::~PSDoseDeposition2()
   ;
 }
 
+//aceasta clasa extinde PSDoseDeposition2Core care la randul ei extinde G4VPrimitiveScorer
+//in G4VPrimitiveScorer sunt stocati fNj, fNk si fNk
+//initial dupa citire macro run beamon valorile initiale fNj sunt toate 1.
+//Scorerul este adaugat in mesh (mesh->SetPrimitiveScorer(ps);)....via scoreQuantityManager.
+//In momentul in care mesh-ul se inchide si se pregateste pentru rulare (la comanda /score/close sau automat
+//cand porneste /run/beamOn), interfata Geant4 parcurge toti scorerii inregistrati si le suprascrie dimensiunile
+//interne pentru a se potrivi cu numarul de bini ai mesh-ului!
+//Proof: //G4cout<<"!!!!!!!!!!!!!!!!@@@@@@@@@@fNj: "<<fNj<<G4endl;//we got real mesh: 300!!!!!	below!!!
 G4int PSDoseDeposition2::GetIndex(G4Step* aStep)//overwrite super-super class method
 {
   const G4VTouchable* touchable = aStep->GetPreStepPoint()->GetTouchable();
   G4int i = touchable->GetReplicaNumber(fDepthi);
   G4int j = touchable->GetReplicaNumber(fDepthj);
   G4int k = touchable->GetReplicaNumber(fDepthk);
+
+  //G4cout<<"!!!!!!!!!!!!!!!!@@@@@@@@@@fNj: "<<fNj<<G4endl;//we got real mesh: 300!!!!!	
   
 if(i<0||j<0||k<0)
 { 

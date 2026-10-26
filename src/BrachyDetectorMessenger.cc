@@ -63,6 +63,7 @@ BrachyDetectorMessenger::BrachyDetectorMessenger( BrachyDetectorConstruction* De
   sourceCmd -> SetCandidates("Iridium Iodium Leipzig ");
   sourceCmd -> AvailableForStates(G4State_PreInit,G4State_Idle); 
 
+  //just for compatibility with spring boot
   mBoxSizeCmd = new G4UIcmdWith3VectorAndUnit("/other/mesh/boxSize",this);
   mBoxSizeCmd->SetGuidance("Define size of the scoring mesh.");
   mBoxSizeCmd->SetGuidance("Dx  Dy  Dz  unit");
@@ -113,17 +114,17 @@ void BrachyDetectorMessenger::SetNewValue(G4UIcommand* command,G4String newValue
    }
 
 	if(command==mBoxSizeCmd) {
-		G4ThreeVector size = mBoxSizeCmd->GetNew3VectorValue(newValue);
-		/*G4double vsize[3];
-		vsize[0] = size.x();
-		vsize[1] = size.y();
-		vsize[2] = size.z();*/
+		/*G4ThreeVector size = mBoxSizeCmd->GetNew3VectorValue(newValue);
+		
 		G4double val = size.x();
 		detector->setMeshSizeX(val);//detector->setPhantomSizeX(val);
 		val = size.y();
 		detector->setMeshSizeY(val);//detector->setPhantomSizeY(val);
 		val = size.z();
 		detector->setMeshSizeZ(val);//detector->setPhantomSizeZ(val);
+		*/
+		////NOT NEEDED ANYMORE...just for compatibility with spring boot server!!!!
+		//this does nothing
 	}
 
 	if( command == activityCmd ){

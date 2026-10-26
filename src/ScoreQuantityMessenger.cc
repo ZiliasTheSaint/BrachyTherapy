@@ -30,6 +30,9 @@
 #include "PSDoseDeposition2.hh"
 #include "BrachyUserScoreWriter.hh"
 
+#include "G4RunManager.hh"
+#include "BrachyDetectorConstruction.hh"
+
 ScoreQuantityMessenger::ScoreQuantityMessenger(G4ScoringManager* SManager)
 :G4ScoreQuantityMessenger(SManager),fSMan(SManager)//call superclass constructor and set fsMan = SManager
 {
@@ -70,6 +73,10 @@ ScoreQuantityMessenger::~ScoreQuantityMessenger()
   delete    mBinCmd;
 }
 
+//SetNewValue is override of SUPERCLASS and handled internaly by GEANT4!!!!
+//my superclass is G4ScoreQuantityMessenger  so only commands that are overriden are those of form:
+// /score/quantity/, /score/filter/....
+//Other commands like /score/mesh/ are specific to other class, G4ScoringMessenger with is own SetNewValue
 void ScoreQuantityMessenger::SetNewValue(G4UIcommand * command,G4String newVal)
 {
 	//G4cout<<"ANA ARE MERE!"<<G4endl;//OK!
@@ -80,19 +87,44 @@ void ScoreQuantityMessenger::SetNewValue(G4UIcommand * command,G4String newVal)
         G4cerr << "ERROR : No mesh is currently open. Open/create a mesh first. Command ignored." << G4endl;
         return;
       }
-      // Tokens
+      // Tokens..for instance /score/quantity/doseDeposit2 myDoseGy Gy->
+	  //token[0]=myDoseGy; token[1]=Gy
       G4TokenVec token;
       FillTokenVec(newVal,token);
-      //
+      
       // Commands for Current Mesh
-	  if(command== qdoseDep2Cmd) {
-		if ( CheckMeshPS(mesh,token[0]) ){
+	  if(command== qdoseDep2Cmd) {//command :/score/quantity/doseDeposit2 eDep2
+		if ( CheckMeshPS(mesh,token[0]) ){//safe function probably to avoid duplicates!!!
            if( mesh->GetShape()==boxMesh ) {
 			   //G4cout<<"ANA ARE MERE!"<<G4endl;
 				
 			    PSDoseDeposition2* ps = new PSDoseDeposition2(token[0]);
 				ps->SetUnit(token[1]);
 				mesh->SetPrimitiveScorer(ps);
+
+				//similar cu codul de la cilindru:
+				//dimensiunea (semi-lungimi) si numarul de segmente se citesc direct din mesh
+				G4ThreeVector msize = mesh->GetSize();
+				BrachyUserScoreWriter::setMeshHalfSize(msize.x(), msize.y(), msize.z());
+
+				G4int nSeg[3];
+				mesh->GetNumberOfSegments(nSeg);
+								
+				BrachyUserScoreWriter::setMeshSegment_X(nSeg[0]);
+				BrachyUserScoreWriter::setMeshSegment_Y(nSeg[1]);
+				BrachyUserScoreWriter::setMeshSegment_Z(nSeg[2]);
+
+				//also update the phantom:
+				// === CODUL NOU DE CONECTARE CU DETECTORUL ===
+				G4RunManager* runManager = G4RunManager::GetRunManager();
+				BrachyDetectorConstruction* detector = (BrachyDetectorConstruction*)(runManager->GetUserDetectorConstruction());
+
+				if(detector) {
+					// Trimitem aceleasi dimensiuni din mesh direct in phantomul fizic
+					detector->UpdatePhantomSize(msize.x(), msize.y(), msize.z());
+				 }
+				 
+				
             } 
 			else if( mesh->GetShape()==cylinderMesh ) {
               //G4PSDoseDepositForCylinder3D* ps = 
@@ -113,7 +145,11 @@ void ScoreQuantityMessenger::SetNewValue(G4UIcommand * command,G4String newVal)
 }
 
 void ScoreQuantityMessenger::MeshBinCommand(G4VScoringMesh* mesh, G4TokenVec& token){
-    G4int Ni = StoI(token[0]);
+    
+	//NOT NEEDED ANYMORE...just for compatibility with spring boot server!!!!
+	//this does nothing
+	
+	/*G4int Ni = StoI(token[0]);
     G4int Nj = StoI(token[1]);
     G4int Nk = StoI(token[2]);
 
@@ -121,5 +157,5 @@ void ScoreQuantityMessenger::MeshBinCommand(G4VScoringMesh* mesh, G4TokenVec& to
 
 	BrachyUserScoreWriter::setMeshSegment_X(Ni);
 	BrachyUserScoreWriter::setMeshSegment_Y(Nj);
-	BrachyUserScoreWriter::setMeshSegment_Z(Nk);
+	BrachyUserScoreWriter::setMeshSegment_Z(Nk);*/
 }
