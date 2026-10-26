@@ -119,11 +119,11 @@ void BrachyDetectorMessenger::SetNewValue(G4UIcommand* command,G4String newValue
 		vsize[1] = size.y();
 		vsize[2] = size.z();*/
 		G4double val = size.x();
-		detector->setPhantomSizeX(val);
+		detector->setMeshSizeX(val);//detector->setPhantomSizeX(val);
 		val = size.y();
-		detector->setPhantomSizeY(val);
+		detector->setMeshSizeY(val);//detector->setPhantomSizeY(val);
 		val = size.z();
-		detector->setPhantomSizeZ(val);
+		detector->setMeshSizeZ(val);//detector->setPhantomSizeZ(val);
 	}
 
 	if( command == activityCmd ){

@@ -82,6 +82,14 @@ BrachyRunAction::~BrachyRunAction()
 void BrachyRunAction::BeginOfRunAction(const G4Run* aRun)
 { 	
 	phantom->PrintDetectorParameters();
+	if (phantom->getMeshSizeX()<=0. || phantom->getMeshSizeY()<=0. || phantom->getMeshSizeZ()<=0.)
+		G4cout << "WARNING: /other/mesh/boxSize was not set; voxel widths cannot be computed!" << G4endl;
+	else if (phantom->getMeshSizeX()>phantom->getPhantomSizeX() ||
+			 phantom->getMeshSizeY()>phantom->getPhantomSizeY() ||
+			 phantom->getMeshSizeZ()>phantom->getPhantomSizeZ())
+		G4cout << "WARNING: scoring mesh is larger than the phantom; voxels outside the phantom "
+			"are air and are overweighted by the renormalization!" << G4endl;
+
 	BrachyDetectorConstruction::nbEventInRun = aRun->GetNumberOfEventToBeProcessed();
 	//G4double rho = phantom->getPhantonDensity();
 	//rho=rho*cm3/g;
@@ -144,7 +152,16 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
     G4double cor = (exposureTime * log(2.0) / halfLife)
 						/ (1.0 - exp(-exposureTime* log(2.0) / halfLife));
     G4double meanActivityDuringExposureTime = initialActivity/cor;
-    G4double NumberOfQuantaEmitted = exposureTime*meanActivityDuringExposureTime;//gamas or always present X-ray!
+    
+	//G4double NumberOfQuantaEmitted = exposureTime*meanActivityDuringExposureTime;//gamas or always present X-ray!
+	//activity = decays per second. 1 decay corresponds to XXX photonsPerDecay. Even though we shoot 1 particle at a time thru gun,
+	//it is 1 photon with its own energy (mean or sampled from yield ... doesn't matter, it is still 1 photon). And we really have
+	//XXX photons emitted per decay (with different yields and energies)!!! 
+	//e.g. 60Co emits at each decay ~2 photons at 1173kev and 1332 keV with ~100% yields each!
+
+	//Claude Ai -> good catch: Number of quantas really emitted by source:
+	G4double NumberOfQuantaEmitted = exposureTime*meanActivityDuringExposureTime
+        *BrachyDetectorConstruction::photonsPerDecay;//fotoni emisi (quantas emitted) = dezintegrari x fotoni/dezintegrare
     //G4double NumberOfQuantaSimulated = n;//1.0 * BrachyDetectorConstruction::nbEventInRun;
 
 	std::vector<G4double> centerZ, finalProfileZ,centerY, finalProfileY,centerX, finalProfileX;
@@ -165,9 +182,13 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	int nY = BrachyUserScoreWriter::getMeshSegment_Y();
 	int nZ = BrachyUserScoreWriter::getMeshSegment_Z();
 	
-	G4double voxelWidthX =2.0*(phantom->getPhantomSizeX())/nX;//1. *mm;
-	G4double voxelWidthY =2.0*(phantom->getPhantomSizeY())/nY;//1. *mm;
-	G4double voxelWidthZ =2.0*(phantom->getPhantomSizeY())/nZ;//1. *mm;
+	//G4double voxelWidthX =2.0*(phantom->getPhantomSizeX())/nX;//1. *mm;
+	//G4double voxelWidthY =2.0*(phantom->getPhantomSizeY())/nY;//1. *mm;
+	//G4double voxelWidthZ =2.0*(phantom->getPhantomSizeY())/nZ;//1. *mm;
+	//Claude ai->
+	G4double voxelWidthX =2.0*(phantom->getMeshSizeX())/nX;
+	G4double voxelWidthY =2.0*(phantom->getMeshSizeY())/nY;
+	G4double voxelWidthZ =2.0*(phantom->getMeshSizeZ())/nZ;
 
 	G4double voxelMaterialDensity = phantom->getPhantonDensity();
 	G4double voxelMass = voxelMaterialDensity*voxelWidthX*voxelWidthY*voxelWidthZ;//for renormalization
@@ -365,7 +386,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 
 	int nmm;
 	nmm= profileZ.size();
-	G4double number = 1.0;//NO MEDIATION ...DOSE IS FROM ALL ADJACENT 9 CELLS!!!!!!!!!!!!!!!4.0;//4 beans around center  
+	//G4double number = 1.0;//NO MEDIATION ...DOSE IS FROM ALL ADJACENT 9 CELLS!!!!!!!!!!!!!!!4.0;//4 beans around center  
 	G4double sum = 0.0;G4double errsum = 0.0;
 	//double conversion = 1000.0*1000.0*NumberOfQuantaEmitted/n;//micro
 	double conversion = 1000.0*renorm*NumberOfQuantaEmitted/n;//NumberOfQuantaSimulated;
@@ -384,16 +405,20 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	G4cout<<"Voxel center coordinate on a particular central axis and VOXEL DOSE [mGy]: "<<G4endl;	
 	//G4cout<<"z-axis"<<G4endl;
 	//G4cout<<"BEGIN_DATA"<<G4endl;
+	//vD.err is in %!!! errsum shoud be (in %): 100.0*SQRT(SUM(vD.err*vD.dose)^2)/SUM(vD.dose)
 	for (G4double z = minZ; z<=maxZ; z=z+voxelWidthZ){//1.0){//1 mm increment
 		sum = 0.0;errsum=0.0;
 		for(int i = 0; i < nmm; i++) {
 			voxelDose vD = profileZ[i];
 			if (vD.zc==z) {
-				sum = sum + vD.dose;
-				errsum = errsum+vD.err;//%
+				sum = sum + vD.dose;//SUM(vD.dose)
+				//errsum = errsum+vD.err;//%
+				errsum = errsum+vD.err*vD.dose*vD.err*vD.dose;//SUM(vD.err*vD.dose)^2
 			}
 		}
-		sum = sum /number;errsum = errsum /number;
+		//sum = sum /number;errsum = errsum /number;
+		sum = sum ;if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" z= "<<z<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 		centerZ.push_back(z);
@@ -411,10 +436,13 @@ G4cout<<" z= "<<z<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 			voxelDose vD = profileY[i];
 			if (vD.yc==y) {
 				sum = sum + vD.dose;
-				errsum = errsum+vD.err;//%
+				//errsum = errsum+vD.err;//%
+				errsum = errsum+vD.err*vD.dose*vD.err*vD.dose;//SUM(vD.err*vD.dose)^2
 			}
 		}
-		sum = sum /number;errsum = errsum /number;
+		//sum = sum /number;errsum = errsum /number;
+		sum = sum ;	if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" y = "<<y<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 		centerY.push_back(y);
@@ -432,10 +460,13 @@ G4cout<<" y = "<<y<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 			voxelDose vD = profileX[i];
 			if (vD.xc==x){
 				sum = sum + vD.dose;
-				errsum = errsum+vD.err;//%
+				//errsum = errsum+vD.err;//%
+				errsum = errsum+vD.err*vD.dose*vD.err*vD.dose;//SUM(vD.err*vD.dose)^2
 			}
 		}
-		sum = sum /number;errsum = errsum /number;
+		//sum = sum /number;errsum = errsum /number;
+		sum = sum ;if(sum!=0.0) errsum = std::min(100.0*(std::sqrt(errsum) /sum),99.9);
+
 		sum=sum*conversion/gray;//Gy->conversion
 G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 		centerX.push_back(x);

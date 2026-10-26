@@ -62,7 +62,15 @@
 G4double BrachyDetectorConstruction::phantomDensity=1.0;//solved
 G4double BrachyDetectorConstruction::initialSourceActivity=16.0e6 * becquerel;//16 MBq
 G4double BrachyDetectorConstruction::exposureTime=-3600.0 * second;
-G4double BrachyDetectorConstruction::sourceHalfLife=600.0 * second;//solved
+//->Claude ai
+G4double BrachyDetectorConstruction::sourceHalfLife=73.831*24.0*3600.0*second;//Ir-192 = sursa implicita //600.0 * second;//solved
+/*
+Claude Good catch -> photonsPerDecay should not be condidered 1!!!! e.g. 60Co emits 2 photons with yields almost 1 at 1173 keV and 1332 keV so ~ 2 photons per a single decay!!!!
+Therefore photonsPerDecay should be the SUM of all photons yields!!!!!!! 
+CORRECT!
+*/
+G4double BrachyDetectorConstruction::photonsPerDecay=2.2;//Ir-192 (sursa implicita)
+
 G4int BrachyDetectorConstruction::nbEventInRun=1;
 
 BrachyDetectorConstruction::BrachyDetectorConstruction()
@@ -72,9 +80,16 @@ BrachyDetectorConstruction::BrachyDetectorConstruction()
   phantomAbsorberMaterial(0)
 {
   // Define half size of the phantom along the x, y, z axis
-  phantomSizeX = 5.*cm ;
+  /*phantomSizeX = 5.*cm ;
   phantomSizeY = 5.*cm;
-  phantomSizeZ = 5.*cm;
+  phantomSizeZ = 5.*cm;*/
+
+  phantomSizeX = 15.*cm ;//to match the mesh!!!!!see mac file!
+  phantomSizeY = 15.*cm;
+  phantomSizeZ = 15.*cm;
+  meshSizeX = 0.0;
+  meshSizeY = 0.0;
+  meshSizeZ = 0.0;
   
   // Define the sizes of the World volume containing the phantom
   worldSizeX = 4.0*m;
@@ -148,6 +163,8 @@ void BrachyDetectorConstruction::SelectBrachytherapicSeed(G4String val)
   {
    detectorChoice = 1;
    sourceHalfLife=59.402*24.0*3600.0*second;//59.402 days I125
+   photonsPerDecay=1.6;//0.0668/0.045671;//=1.463; yield gama 35.5 keV / probabilitatea ei normalizata din generator
+   //1.598....nuclide exposure -> sum of all yields..more exact!
   }
   else
   {
@@ -155,6 +172,7 @@ void BrachyDetectorConstruction::SelectBrachytherapicSeed(G4String val)
     {
       detectorChoice = 2;
 	  sourceHalfLife=73.831*24.0*3600.0*second;//73.831 days Ir192
+	  photonsPerDecay=2.2;//Ir192 nuclide exposure -> sum of all yields
     }
     else
     {
@@ -162,6 +180,7 @@ void BrachyDetectorConstruction::SelectBrachytherapicSeed(G4String val)
       {
         detectorChoice = 3;
 		sourceHalfLife=73.831*24.0*3600.0*second;//73.831 days Ir192
+		photonsPerDecay=2.2;//Ir192 nuclide exposure -> sum of all yields
       }
     }
   }

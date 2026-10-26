@@ -68,7 +68,7 @@ BrachyPrimaryGeneratorActionI::BrachyPrimaryGeneratorActionI()
   */
   energySpectrum.push_back(0.783913);//x-ray
   energySpectrum.push_back(0.170416);//x-ray
-  energySpectrum.push_back(0.045671); //main gamma
+  energySpectrum.push_back(0.045671); //main gamma with yield of 0.0668 (6.68%)..see nuclide explorer 0.045671 = 0.0668/SUM_all_yield
 }
 
 BrachyPrimaryGeneratorActionI::~BrachyPrimaryGeneratorActionI()
