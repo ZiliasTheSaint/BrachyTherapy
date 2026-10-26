@@ -43,6 +43,7 @@ struct voxelDose {
 };
 
 BrachyRunAction::BrachyRunAction()
+	: totalDoseRun(0.), totalDoseRun2(0.), totalEdepRun(0.), totalEdepRun2(0.)
 {
 		// add new units for dose 
   const G4double milligray = 1.e-3*gray;
@@ -101,6 +102,9 @@ void BrachyRunAction::BeginOfRunAction(const G4Run* aRun)
 	dose2.clear();
 	EDEP.clear();
 	EDEP2.clear();
+
+	totalDoseRun=0.; totalDoseRun2=0.;
+	totalEdepRun=0.; totalEdepRun2=0.;
 }
 
 void BrachyRunAction::EndOfRunAction(const G4Run* aRun)
@@ -128,6 +132,18 @@ void BrachyRunAction::FillEnergy(G4int index, G4double energyDeposit)
 {
 	EDEP[index] += energyDeposit;
 	EDEP2[index] += energyDeposit*energyDeposit;
+}
+
+void BrachyRunAction::FillDoseTotal(G4double eventDose)
+{
+	totalDoseRun  += eventDose;
+	totalDoseRun2 += eventDose*eventDose;
+}
+
+void BrachyRunAction::FillEnergyTotal(G4double eventEnergy)
+{
+	totalEdepRun  += eventEnergy;
+	totalEdepRun2 += eventEnergy*eventEnergy;
 }
 
 void BrachyRunAction::totalRunEnergyDeposit(G4int n){
@@ -369,8 +385,25 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 		}//y
 	}//x
 	
-	totalerr = basicAnalyze(totalDose, totalDose2, n);
-	realtotalerr = basicAnalyze(realtotalDose, realtotalDose2, n);
+
+	//totalerr = basicAnalyze(totalDose, totalDose2, n);
+	//realtotalerr = basicAnalyze(realtotalDose, realtotalDose2, n);
+
+	totalerr = basicAnalyze(totalDoseRun, totalDoseRun2, n);
+	realtotalerr = basicAnalyze(totalEdepRun, totalEdepRun2, n);
+	//Valorile totalDose si realtotalDose raman ca pana acum. Sunt egale cu totalDoseRun si totalEdepRun (aceleasi sume, doar adunate in alt loc).
+	/*
+	OBS: claude-> inainte cu totalDose per voxel. totalDose2->face sa apara covarianta. 
+	Mai explicit: pentru un eveniment e cu depuneri d_v in voxelii v. Energia/doza totala la patrat, care se vrea totalDose2, este (SUM_v d_v)^2
+	care este SUM_v d_v^2 + COVAR term (adica 2 SUM {v<w} d_vd_w!!!!!!!!!!!!!!!!!!!!!!!! totalDose2 este doar primul termen, nu tine cont de COVAR
+	dintre termenii incrucisati!!! 
+	see GDet: covar term: 2/N x ppeak x pbkg/(N-1)- adica produsul a doua cantitati din acelasi eveniment.
+
+	Acum: Acumulezi direct patratul totalului pe eveniment si covarianta vine odata cu el. CLEVER!!!!!
+
+	*/
+	
+
 	realtotalDose=realtotalDose/phantomMass;
 	/*
 	for(int x = 0; x < nX; x++) {

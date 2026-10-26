@@ -81,6 +81,8 @@ void EventAction::totalEventDoseDeposit(){
 	std::map<G4int,G4double>::iterator i = doseEventTotal.begin();
     std::map<G4int,G4double>::iterator end = doseEventTotal.end();
 
+	G4double eventDose = 0.0;
+
 	while(i!=end)
     {
 
@@ -90,10 +92,13 @@ void EventAction::totalEventDoseDeposit(){
        if(doseDep != 0.)
 	   {
 	       pointerRun->Fill(index, doseDep);
+		   eventDose += doseDep;
 	   }
        
 	   i++;
     }
+
+	pointerRun->FillDoseTotal(eventDose);
 }
 
 void EventAction::totalEventEnergyDeposit(){
@@ -102,6 +107,8 @@ void EventAction::totalEventEnergyDeposit(){
 
 	std::map<G4int,G4double>::iterator i = energyEventTotal.begin();
     std::map<G4int,G4double>::iterator end = energyEventTotal.end();
+
+	G4double eventEnergy = 0.0;
 
 	while(i!=end)
     {
@@ -112,8 +119,13 @@ void EventAction::totalEventEnergyDeposit(){
        //if(edepDep != 0.)
 	   //{
 	       pointerRun->FillEnergy(index, edepDep);
+
+		   eventEnergy += edepDep;
+
 	   //}
        
 	   i++;
     }
+
+	pointerRun->FillEnergyTotal(eventEnergy);
 }

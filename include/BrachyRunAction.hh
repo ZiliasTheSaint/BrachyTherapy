@@ -49,6 +49,10 @@ public:
   void Fill(G4int index, G4double doseDeposit);
   void FillEnergy(G4int index, G4double energyDeposit);
 
+  //claude ai
+  void FillDoseTotal(G4double eventDose);
+  void FillEnergyTotal(G4double eventEnergy);
+
   G4double basicAnalyze(G4double x, G4double x2, G4int n){
 	  G4double temp=x;G4double temp2=x2;G4int nevents=n;
 	  temp=temp/nevents;temp2=temp2/nevents;
@@ -70,6 +74,11 @@ private:
 	std::map<G4int,G4double> dose2;
 	std::map<G4int,G4double> EDEP;
 	std::map<G4int,G4double> EDEP2;
+
+	G4double totalDoseRun;   // suma peste evenimente a dozei totale pe eveniment
+	G4double totalDoseRun2;  // suma patratelor
+	G4double totalEdepRun;
+	G4double totalEdepRun2;
 };
 #endif
 
