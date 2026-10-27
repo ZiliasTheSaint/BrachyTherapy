@@ -279,7 +279,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 
 	//projection vectors
 	// declare xy array
-    std::vector<double> projy;std::vector<double> ycoord;
+    /*std::vector<double> projy;std::vector<double> ycoord;
     for(int y = 0; y < nY; y++){
 		G4double yy = ( - nY + 1+ 2*y )* voxelWidthY/2;
 		ycoord.push_back(yy/mm);
@@ -296,7 +296,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 		G4double zz = ( - nZ + 1+ 2*z )* voxelWidthZ/2;
 		zcoord.push_back(zz/mm);
 		projz.push_back(0.);
-	}
+	}*/
 
 	//CLAUDE -> added
 	G4int loX, hiX, loY, hiY, loZ, hiZ;
@@ -357,9 +357,9 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 
 					//projection profile
 					//Claude->projxy[x][y] += ddep;////projection on x-y plane
-					projx[x]+= ddep;//projection on x...not good
-					projy[y]+= ddep;//projection on y...not good
-					projz[z]+= ddep;//projection on z...not good...claude is good!!
+					//projx[x]+= ddep;//projection on x...not good
+					//projy[y]+= ddep;//projection on y...not good
+					//projz[z]+= ddep;//projection on z...not good...claude is good!!
 					//sum of projxyz[i] is totalDose..obviouse!
 
 					//central axis dose
