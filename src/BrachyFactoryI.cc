@@ -55,6 +55,7 @@ BrachyFactoryI:: BrachyFactoryI()
 BrachyFactoryI::~BrachyFactoryI()
 {
   delete iodiumSource;
+  delete iodiumPrimaryParticle;     // lipsea
 }
 
 void  BrachyFactoryI::CreatePrimaryGeneratorAction(G4Event* anEvent)
@@ -67,5 +68,10 @@ void BrachyFactoryI::CreateSource(G4VPhysicalVolume* mother)
   iodiumSource -> ConstructIodium(mother);
 }
 
+//Macrourile existente nu sunt afectate, pentru ca fac un singur switch din Ir.
 void BrachyFactoryI::CleanSource()
-{;}
+{
+	G4Exception("BrachyFactoryI::CleanSource()", "Brachy_SourceSwitch", FatalException,
+              "The Iodium source cannot be removed once built: "
+              "use /source/switch only once, as first source command.");
+}

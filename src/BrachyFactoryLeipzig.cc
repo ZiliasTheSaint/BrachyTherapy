@@ -57,6 +57,7 @@ BrachyFactoryLeipzig:: BrachyFactoryLeipzig()
 BrachyFactoryLeipzig:: ~BrachyFactoryLeipzig()
 {
   delete leipzigSource;
+  delete iridiumPrimaryParticle;    // lipsea
 }
 
 void BrachyFactoryLeipzig::CreatePrimaryGeneratorAction(G4Event* anEvent)
@@ -71,5 +72,7 @@ void BrachyFactoryLeipzig::CreateSource(G4VPhysicalVolume* mother)
 
 void BrachyFactoryLeipzig::CleanSource()
 {
-  ;
+ G4Exception("LeipzigFactorI::CleanSource()", "Brachy_SourceSwitch", FatalException,
+              "The Iodium source cannot be removed once built: "
+              "use /source/switch only once, as first source command.");
 }

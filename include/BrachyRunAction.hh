@@ -32,6 +32,8 @@
 #include "G4RunManager.hh"
 #include "globals.hh"
 
+#include <vector>
+
 class G4Run;
 class BrachyRunMessenger;
 class BrachyDetectorConstruction;
@@ -79,6 +81,10 @@ private:
 	G4double totalDoseRun2;  // suma patratelor
 	G4double totalEdepRun;
 	G4double totalEdepRun2;
+
+	void PrintAxisProfile(const char* axisName, G4int nBins, G4double voxelWidth,
+                        const std::vector<G4double>& sum, const std::vector<G4double>& sum2,
+                        G4int nVoxelsInBlock, G4int nEvents, G4double localConversion);
 };
 #endif
 

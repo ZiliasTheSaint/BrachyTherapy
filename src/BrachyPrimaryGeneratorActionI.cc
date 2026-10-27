@@ -87,16 +87,27 @@ void BrachyPrimaryGeneratorActionI::GeneratePrimaries(G4Event* anEvent)
   particleGun -> SetParticleDefinition(particle);
 
   //  Random generation of gamma source point inside the Iodium core ...
-  G4double x,y,z;
-  G4double radiuMax = 0.30*mm;
-  G4double radiusMin = 0.085*mm;
- 
+  //G4double x,y,z;
+   //G4double radiuMax = 0.30*mm;
+  //G4double radiusMin = 0.085*mm;
+
+  // Miez ICore: r in [0.085, 0.35] mm, semilungime 1.75 mm (la fel ca in geometrie)
+  const G4double coreRadiusMin  = 0.085*mm;
+  const G4double coreRadiusMax  = 0.35*mm;
+  const G4double coreHalfLength = 1.75*mm;
+  G4double x, y, r2;
+   
   do{
-     x = (G4UniformRand()-0.5)*(radiuMax)/0.5;
-     y = (G4UniformRand()-0.5)*(radiuMax)/0.5;
-  }while(((x*x+y*y )> (radiuMax*radiuMax))||((x*x+y*y)<(radiusMin*radiusMin)));
+     //x = (G4UniformRand()-0.5)*(radiuMax)/0.5;
+     //y = (G4UniformRand()-0.5)*(radiuMax)/0.5;
+	  x  = (2.0*G4UniformRand() - 1.0)*coreRadiusMax;
+	  y  = (2.0*G4UniformRand() - 1.0)*coreRadiusMax;
+      r2 = x*x + y*y;
+  }//while(((x*x+y*y )> (radiuMax*radiuMax))||((x*x+y*y)<(radiusMin*radiusMin)));
+  while (r2 > coreRadiusMax*coreRadiusMax || r2 < coreRadiusMin*coreRadiusMin);
  
-  z = (G4UniformRand()-0.5)*1.75*mm/0.5 ;
+  //z = (G4UniformRand()-0.5)*1.75*mm/0.5 ;
+   const G4double z = (2.0*G4UniformRand() - 1.0)*coreHalfLength;
 
   G4ThreeVector position(x,y,z);
   particleGun -> SetParticlePosition(position);
@@ -105,9 +116,9 @@ void BrachyPrimaryGeneratorActionI::GeneratePrimaries(G4Event* anEvent)
   G4double a,b,c;
   G4double n;
   do{
-    a = (G4UniformRand()-0.5)/0.5;
-    b = (G4UniformRand()-0.5)/0.5; 
-    c = (G4UniformRand()-0.5)/0.5;
+    a = (G4UniformRand()-0.5)/0.5;//gives [-1,1]
+    b = (G4UniformRand()-0.5)/0.5;//gives [-1,1] 
+    c = (G4UniformRand()-0.5)/0.5;//gives [-1,1]
     n = a*a+b*b+c*c;
   }while(n > 1 || n == 0.0);
   n = std::sqrt(n);
@@ -116,21 +127,37 @@ void BrachyPrimaryGeneratorActionI::GeneratePrimaries(G4Event* anEvent)
   c /= n;
 
   G4ThreeVector direction(a,b,c);
-  particleGun -> SetParticleMomentumDirection(direction);
+  particleGun -> SetParticleMomentumDirection(direction);//uniform in all directions! correct
  
-  // Generate the primary particles with a defined energy spectrum
+  //selectia energiei nu mai poate citi în afara vectorului.
+  //if sum of probab is not 1, but 0.999999 and random gives 0.99999999999999 greater->infinite loop!!!
+  /*// Generate the primary particles with a defined energy spectrum
   G4double random = G4UniformRand();
   G4double sum = 0;
   G4int i = 0;
-  while(sum<random){sum+=energySpectrum[i];
-  i++;}
+  while(sum<random){sum+=energySpectrum[i];//add probab elem i
+  i++;//imediat increment!?? daca prima probab energySpectrum[0]>random exit loop but i value is 1 not 0!!!!!
+  }
 
   // energy spectrum
   if(i==1){primaryParticleEnergy = 27.4*keV;}
   else{ 
     if(i==2){primaryParticleEnergy = 31.4*keV;}
-    else {primaryParticleEnergy = 35.5*keV;}}
+    else {primaryParticleEnergy = 35.5*keV;}}//if more than 3 energies -> always 3!!! bad logic
 
+  particleGun -> SetParticleEnergy(primaryParticleEnergy);
+
+  */
+  static const G4double energies[3] = {27.4*keV, 31.4*keV, 35.5*keV};//eith energy spectrum frequencies 0,7839 / 0,1703 / 0,0457
+  const G4double random = G4UniformRand();
+  size_t i = 0;//size_t is a type of data ...can store 0 and positive numbers only!
+  G4double cumulative = energySpectrum[0];
+  while (i < energySpectrum.size() - 1 && random > cumulative) {
+    ++i;
+    cumulative += energySpectrum[i];
+  }
+  primaryParticleEnergy = energies[i];
+  //Frecventele reproduc 0,7839 / 0,1703 / 0,0457 în testul pe 2 milioane de esantioane.
   particleGun -> SetParticleEnergy(primaryParticleEnergy);
 
   // generate primary particle

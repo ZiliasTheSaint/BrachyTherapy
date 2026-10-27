@@ -126,6 +126,9 @@ BrachyUserScoreWriter::BrachyUserScoreWriter(): G4VScoreWriter() //call supercla
 BrachyUserScoreWriter::~BrachyUserScoreWriter() 
 {;}
 
+//below cod mort ca incepe cu return!!!!!
+// Poti sterge tot si lasat Intentionat gol: rezultatele sunt afisate de BrachyRunAction::totalRunEnergyDeposit().
+// Eventual sterge tot continutul astfel incat va suprascrie metoda din G4VScoreWriter ca /score/dumpQuantityToFile sa nu scrie nimic.
 void BrachyUserScoreWriter::DumpQuantityToFile(const G4String & psName, const G4String & fileName, const G4String & option) 
 {
 	return;

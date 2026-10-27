@@ -34,6 +34,10 @@
 #include "G4UnitsTable.hh"
 #include "BrachyUserScoreWriter.hh"
 
+#include "PSDoseDeposition2Core.hh"
+#include "G4LogicalVolume.hh"
+#include "G4LogicalVolumeStore.hh"
+/*
 struct voxelDose {
   G4double xc;//center x-coordonate
   G4double yc;//center y-coordonate
@@ -41,6 +45,36 @@ struct voxelDose {
   G4double dose;//in macro filea change energyDeposit with doseDeposit
   G4double err;//percent
 };
+*/
+//namespace = vizibility only here in this cpp file!!
+namespace
+{
+  // Indici (inclusiv) ai voxelilor centrali pe o axa: n par -> 2 voxeli,
+  // n impar -> 3 voxeli; in ambele cazuri simetrici fata de origine.
+  void CentralRange(G4int n, G4int& lo, G4int& hi)
+  {
+    if (n % 2 == 0) { lo = n/2 - 1; hi = n/2; }//e.g. n=4 (indices 0,1,2,3) => lo=1,hi=2; hi-lo+1 = 2 blocks; n=6 (0,1,2,3,4,5) => lo=2, hi=3
+    else            { lo = n/2 - 1; hi = n/2 + 1; }//e.g. n=5 (indices 0,1,2,3,4) => lo=1, hi =3; hi-lo+1 = 3 blocks; n=9 (0,1,2,3,4,5,6,7,8) =>lo=3,hi=5 and 4
+    if (lo < 0)     lo = 0;
+    if (hi > n - 1) hi = n - 1;
+  }
+}
+
+void BrachyRunAction::PrintAxisProfile(const char* axisName, G4int nBins, G4double voxelWidth,
+                                       const std::vector<G4double>& sum,
+                                       const std::vector<G4double>& sum2,
+                                       G4int nVoxelsInBlock, G4int nEvents,
+                                       G4double localConversion)
+{
+  for (G4int i = 0; i < nBins; i++) {
+    //if (sum[i] == 0.0) continue;//contiunue loop by ignoring code below this line!
+    const G4double coord    = (-nBins + 1 + 2*i)*voxelWidth/2;
+    const G4double meanDose = sum[i]/nVoxelsInBlock*localConversion/gray;
+    const G4double err      = basicAnalyze(sum[i], sum2[i], nEvents);
+    G4cout << " " << axisName << "= " << coord/mm << " voxelDose = "
+           << meanDose << " +/- " << err << " % " << G4endl;
+  }
+}
 
 BrachyRunAction::BrachyRunAction()
 	: totalDoseRun(0.), totalDoseRun2(0.), totalEdepRun(0.), totalEdepRun2(0.)
@@ -75,6 +109,9 @@ BrachyRunAction::BrachyRunAction()
   new G4UnitDefinition("terabecqurel" , "teraBq"  , "Activity", terabecqurel);  
 phantom = (BrachyDetectorConstruction*)
              G4RunManager::GetRunManager()->GetUserDetectorConstruction(); 
+
+//test
+PSDoseDeposition2Core::edepByMaterial.clear();
 }
 
 BrachyRunAction::~BrachyRunAction()
@@ -191,31 +228,16 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
         *BrachyDetectorConstruction::photonsPerDecay;//fotoni emisi (quantas emitted) = dezintegrari x fotoni/dezintegrare
     //G4double NumberOfQuantaSimulated = n;//1.0 * BrachyDetectorConstruction::nbEventInRun;
 
-	std::vector<G4double> centerZ, finalProfileZ,centerY, finalProfileY,centerX, finalProfileX;
-    std::vector<voxelDose>profileZ,profileX,profileY;//, profileZmm,profileZmp,profileZpm,profileZpp;
-	//std::vector<voxelDose> projX,projY,projZ;    
-    //std::vector<G4double> projcenterZ, finalprojProfileZ,
-		//projcenterY, finalprojProfileY,
-		//projcenterX, finalprojProfileX;
-    
-    G4double minZ=0.0;
-    G4double maxZ=0.0;
-    G4double minY=0.0;
-    G4double maxY=0.0;
-    G4double minX=0.0;
-    G4double maxX=0.0;
+	//CLAUDE -> std::vector<G4double> centerZ, finalProfileZ,centerY, finalProfileY,centerX, finalProfileX;
+    //CLAUDE -> std::vector<voxelDose>profileZ,profileX,profileY;
+	    
+    //CLAUDE -> G4double minZ=0.0;G4double maxZ=0.0;G4double minY=0.0;
+    //CLAUDE -> G4double maxY=0.0; G4double minX=0.0;G4double maxX=0.0;
 
 	int nX = BrachyUserScoreWriter::getMeshSegment_X();
 	int nY = BrachyUserScoreWriter::getMeshSegment_Y();
 	int nZ = BrachyUserScoreWriter::getMeshSegment_Z();
 	
-	//G4double voxelWidthX =2.0*(phantom->getPhantomSizeX())/nX;//1. *mm;
-	//G4double voxelWidthY =2.0*(phantom->getPhantomSizeY())/nY;//1. *mm;
-	//G4double voxelWidthZ =2.0*(phantom->getPhantomSizeY())/nZ;//1. *mm;
-	//Claude ai->
-	//G4double voxelWidthX =2.0*(phantom->getMeshSizeX())/nX;
-	//G4double voxelWidthY =2.0*(phantom->getMeshSizeY())/nY;
-	//G4double voxelWidthZ =2.0*(phantom->getMeshSizeZ())/nZ;
 	G4double voxelWidthX =2.0*BrachyUserScoreWriter::getMeshHalfSizeX()/nX;
 	G4double voxelWidthY =2.0*BrachyUserScoreWriter::getMeshHalfSizeY()/nY;
 	G4double voxelWidthZ =2.0*BrachyUserScoreWriter::getMeshHalfSizeZ()/nZ;
@@ -238,26 +260,36 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
     std::vector<double> projy;std::vector<double> ycoord;
     for(int y = 0; y < nY; y++){
 		G4double yy = ( - nY + 1+ 2*y )* voxelWidthY/2;
-		ycoord.push_back(yy);
+		ycoord.push_back(yy/mm);
 		projy.push_back(0.);
 	}
     std::vector<double> projx;std::vector<double> xcoord;
     for(int x = 0; x < nX; x++){
 		G4double xx = ( - nX + 1+ 2*x )* voxelWidthX/2;
-		xcoord.push_back(xx);
+		xcoord.push_back(xx/mm);
 		projx.push_back(0.);
 	}
     std::vector<double> projz;std::vector<double> zcoord;
     for(int z = 0; z < nZ; z++){
 		G4double zz = ( - nZ + 1+ 2*z )* voxelWidthZ/2;
-		zcoord.push_back(zz);
+		zcoord.push_back(zz/mm);
 		projz.push_back(0.);
 	}
 
-	std::vector<std::vector<double> > projxy;//not used
-    for(int x = 0; x < nX; x++) projxy.push_back(projy);
-	//
-	//G4cout<<"nX = "<<nX<<" ; nY= "<<nY<<" ; nZ= "<<nZ<<G4endl;
+	//CLAUDE -> added
+	G4int loX, hiX, loY, hiY, loZ, hiZ;
+	CentralRange(nX, loX, hiX);//n par => 2 indices; n odd =>3 indeces including central!
+	CentralRange(nY, loY, hiY);
+	CentralRange(nZ, loZ, hiZ);
+	std::vector<G4double> profDoseX(nX, 0.0), profDoseX2(nX, 0.0);//vector of dimension n with 0.0 initial values!
+	std::vector<G4double> profDoseY(nY, 0.0), profDoseY2(nY, 0.0);
+	std::vector<G4double> profDoseZ(nZ, 0.0), profDoseZ2(nZ, 0.0);
+	//END CLAUDE added
+
+	//CLAUDE -> std::vector<std::vector<double> > projxy;//not used
+    //CLAUDE -> for(int x = 0; x < nX; x++) projxy.push_back(projy);
+
+		//G4cout<<"nX = "<<nX<<" ; nY= "<<nY<<" ; nZ= "<<nZ<<G4endl;
 	G4double totalDose = 0.0;
 	G4double totalDose2 = 0.0;
 	G4double totalerr = 0.0;//basicAnalyze(ddep, ddep, n);
@@ -272,21 +304,13 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 		for(int y = 0; y < nY; y++) {   
 			for(int z = 0; z < nZ; z++) {
 
-				//G4int numberOfVoxel = nX;//fNMeshSegments[0];
-				// If the voxel width is changed in the macro file, 
-				// the voxel width variable must be updated...sa-mi bag ceva in programatorii copy/paste
-				//mare branza sa faci o chestie ca lumea mai italienilor!!sunteti niste useri ordinari!
-				//G4double voxelWidthX =2.0*(phantom->getPhantomSizeX())/nX;//1. *mm;
-				//G4double voxelWidthY =2.0*(phantom->getPhantomSizeY())/nY;//1. *mm;
-				//G4double voxelWidthZ =2.0*(phantom->getPhantomSizeY())/nZ;//1. *mm;
-
-				G4double xx = ( - nX + 1+ 2*x )* voxelWidthX/2; 
-				G4double yy = ( - nY + 1+ 2*y )* voxelWidthY/2;
-				G4double zz = ( - nZ + 1+ 2*z )* voxelWidthZ/2;
-				//if (x==0 && y==0) zcoord.push_back(zz);	
-				//G4int idx = GetIndex(x, y, z);//MAPPPPPPPPPPPPPPPPPPPPPPPPPP index with value!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				//return x*fNMeshSegments[1]*fNMeshSegments[2] +y*fNMeshSegments[2]+z;
+				//Claude -> G4double xx = ( - nX + 1+ 2*x )* voxelWidthX/2; 
+				//Claude ->G4double yy = ( - nY + 1+ 2*y )* voxelWidthY/2;
+				//Claude ->G4double zz = ( - nZ + 1+ 2*z )* voxelWidthZ/2;
+				
+				//see PSDeposition2 GetIndex implementation: i*fNj*fNk+j*fNk+k;
 				G4int idx = x*nY*nZ +y*nZ+z;
+
 				//find the index to be used for all maps:
 				std::map<G4int, G4double>::iterator value = dose.find(idx);//i=doseTotal.find(idx);
 				std::map<G4int, G4double>::iterator value2 = dose2.find(idx);//error
@@ -299,7 +323,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 					G4double ddep = (value->second);
 					G4double ddep2 = (value2->second);
 					//Note in eventAction: if(doseDep != 0.) we only have non-zero doseDep!
-					G4double err = basicAnalyze(ddep, ddep2, n);
+					//Claude -> G4double err = basicAnalyze(ddep, ddep2, n);
 					
 					totalDose=totalDose+ddep;//total
 					totalDose2=totalDose2+ddep2;//total
@@ -310,13 +334,15 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 					realtotalDose2 = realtotalDose2+edep2;///(phantomMass*phantomMass);
 
 					//projection profile
-					projxy[x][y] += ddep;////projection on x-y plane
-					projx[x]+= ddep;//projection on x
-					projy[y]+= ddep;//projection on y
-					projz[z]+= ddep;//projection on z
+					//Claude->projxy[x][y] += ddep;////projection on x-y plane
+					projx[x]+= ddep;//projection on x...not good
+					projy[y]+= ddep;//projection on y...not good
+					projz[z]+= ddep;//projection on z...not good...claude is good!!
 					//sum of projxyz[i] is totalDose..obviouse!
 
 					//central axis dose
+					
+					/* Claude->
 					if (
 						((x==nX/2-1)&& (y==nY/2-1)) ||//((x==149)&& (y==149)) ||
 						((x==nX/2-1)&& (y==nY/2)) ||//((x==149)&& (y==150)) ||
@@ -396,13 +422,22 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 						//G4cout<<"; xc = "<<vD.xc<<"; yc = "<<vD.yc<<"; zc = "<<vD.zc<<
 						//"; Ddep = "<<G4BestUnit(vD.dose, "Dose")<<G4endl;
 
-					}
+					}*/
+					// profile pe axe: suma pe blocul transversal central-CORRECT!!!!
+					const G4bool cx = (x >= loX && x <= hiX);
+					const G4bool cy = (y >= loY && y <= hiY);
+					const G4bool cz = (z >= loZ && z <= hiZ);
+					if (cx && cy) { profDoseZ[z] += ddep; profDoseZ2[z] += ddep2; }//Aduna doza de-a lungul axei Z, dar doar pentru voxelii care sunt in centrul axelor X si Y.
+					if (cx && cz) { profDoseY[y] += ddep; profDoseY2[y] += ddep2; }//Aduna doza de-a lungul axei Y, dar doar pentru voxelii care sunt in centrul axelor X si Z.
+					if (cy && cz) { profDoseX[x] += ddep; profDoseX2[x] += ddep2; }//Aduna doza de-a lungul axei X, dar doar pentru voxelii care sunt in centrul axelor Y si Z.
+					//Rezultatul: Obtii doza distribuita unidimensional (1D) pe fiecare axa, ideala pentru a vedea cum scade doza cu distanta fata de sursa radioactiva centrala.
+					//asta tre expus la final!!!!!
 				}//if (value != end){
 			}//z
 		}//y
 	}//x
 	
-
+	
 	//totalerr = basicAnalyze(totalDose, totalDose2, n);
 	//realtotalerr = basicAnalyze(realtotalDose, realtotalDose2, n);
 
@@ -434,14 +469,63 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	*/
 	
 	//G4cout<<"Mesh X n: "<<BrachyUserScoreWriter::getMeshSegment_X()<<G4endl;
-	int nmm;
-	nmm= profileZ.size();
+	//CLAUDE -> int nmm;
+	//CLAUDE -> nmm= profileZ.size();
+
 	//G4double number = 1.0;//NO MEDIATION ...DOSE IS FROM ALL ADJACENT 9 CELLS!!!!!!!!!!!!!!!4.0;//4 beans around center  
-	G4double sum = 0.0;G4double errsum = 0.0;
+	//CLAUDE -> G4double sum = 0.0;G4double errsum = 0.0;
+	
 	//double conversion = 1000.0*1000.0*NumberOfQuantaEmitted/n;//micro
-	double conversion = 1000.0*renorm*NumberOfQuantaEmitted/n;//NumberOfQuantaSimulated;
-	double conversion2 = 1000.0*NumberOfQuantaEmitted/n;//for real dose no renorm!!!
-	G4cout<<"Voxel dose renormalization is needed to convert voxel dose to actual phantom dose, i.e. renorm = voxelMass/phantom Mass "<<G4endl;
+
+	//test:=================================================
+	double phantomWeigthByEdep = 1.0;
+	G4LogicalVolume* phantomLog = G4LogicalVolumeStore::GetInstance()->GetVolume("PhantomLog"); 
+	//if (phantomLog) {//see in BrachyConstruction the real name!
+		G4String materialName = phantomLog->GetMaterial()->GetName();
+		G4cout << "phantom material:"<< materialName << G4endl;
+	//}
+
+	G4double eAll = 0.0;
+	std::map<G4String,G4double>::const_iterator m;
+	for (m = PSDoseDeposition2Core::edepByMaterial.begin(); m != PSDoseDeposition2Core::edepByMaterial.end(); ++m) eAll += m->second;
+	G4cout << "Energy deposited per material:" << G4endl;
+	for (m = PSDoseDeposition2Core::edepByMaterial.begin(); m != PSDoseDeposition2Core::edepByMaterial.end(); ++m){
+		G4cout << "  " << m->first << " : " << 100.0*m->second/eAll << " %" << G4endl;
+
+		if(materialName==m->first){
+			phantomWeigthByEdep = m->second/eAll;
+		}
+	}
+	G4cout << "phantom fraction by edep:"<< phantomWeigthByEdep << G4endl;
+	/*
+	Energy deposited per material:
+  Air : 0.02264 %
+  Iodium : 67.434 %
+  gold : 6.54091 %
+  tissue : 19.4844 %...so tissue phantom dose is 0.19 x edep/tissue phantom mass (excluding source) - real dose renorm is shit because different materials!
+  titanium : 6.51798 %
+	So doseFromEdep = edep/phantomMass is incorect!!! most of edep is in Iodium absorbed!!!!!dose must come from real tissue -phantom- dose!!!!!!
+
+	realtotalDose = total edep / phantomMass and phantomMass = phantom->GetPhantomMass(); which is phantomMass = phantomDensity * phantomVolume;
+	phantomVolume is correct PhantomLog->GetSolid()->GetCubicVolume(). density is also correct: pttoMaterial->GetDensity()
+	so phantom mass is phantom mass excluding the capsule inside!!
+
+	renorm = voxelMass/phantomMass is based on voxelMass which is voxelMaterialDensity*voxelWidthX*voxelWidthY*voxelWidthZ; and voxelMaterialDensity = phantom->getPhantonDensity();
+	but is false....voxelMaterialDensity is not universal we have capsule inside where 67.434 % of edep is stored. So despite most of voxels has phantom density, most of dose is 
+	inside caspsule! Therefore this way of phantom dose estimation is wrong.
+
+	The only way for graph...to not blow up at 10^ Gy around center is to scale to phantom mass...as if all materials are phantom, but secretelly know
+	at center we have the capsule with huge capsule dose inside!!!
+
+	The only way: phantomDose = realtotalDose*phantomWeigthByEdep!!!!!!!!!!!!!!!!!
+	*/
+
+
+	double conversion = 1000.0*renorm*NumberOfQuantaEmitted/n;//NumberOfQuantaSimulated;renorm = voxelMass/phantomMass
+	//double conversion2 = 1000.0*NumberOfQuantaEmitted/n;//for real dose no renorm!!!
+	double conversion2 = 1000.0*phantomWeigthByEdep*NumberOfQuantaEmitted/n;//1000 is Gy -> mGy
+	
+	//G4cout<<"Voxel dose renormalization is needed to convert voxel dose to actual phantom dose, i.e. renorm = voxelMass/phantom Mass "<<G4endl;
 	G4cout<<"Radioactive source volume is a capsule made of metal, such as Titanium"<<G4endl;
 	G4cout<<"Radioactive source volume is placed in the center at (x,y,z) = (0,0,0) "<<G4endl;
 	G4cout<<"Dose deposition (DDEP) is scored in each voxel of the mesh"<<G4endl;	
@@ -449,13 +533,26 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 		"; Ysize = "<<voxelWidthY/mm<<
 		"; Zsize = "<<voxelWidthZ/mm<<G4endl;	
 	G4cout<<"---------------------------------------------------------------------------"<<G4endl;
-	G4cout<<"Renormalized total dose in all voxels (source volume taken into account) [mGy]: "<<totalDose*conversion/gray<<" +/- "<<totalerr<<" % "<<G4endl;	
-	G4cout<<"Virtual phantom total dose (excluding source volume, i.e. as only phantom material is present) [mGy]: "<<realtotalDose*conversion2/gray<<" +/- "<<realtotalerr<<" % "<<G4endl;	
+	//G4cout<<"Renormalized total dose in all voxels (renorm=voxelMass/phantomMass) [mGy]: "<<totalDose*conversion/gray<<" +/- "<<totalerr<<" % "<<G4endl;	
+	//G4cout<<"Virtual phantom total dose (total edep/phantom mass) [mGy]: "<<realtotalDose*conversion2/gray<<" +/- "<<realtotalerr<<" % "<<G4endl;	
+	G4cout<<"Total dose in phantom [mGy]: "<<realtotalDose*conversion2/gray<<" +/- "<<realtotalerr<<" % "<<G4endl;
 	G4cout<<"---------------------------------------------------------------------------"<<G4endl;
+
 	G4cout<<"Voxel center coordinate on a particular central axis and VOXEL DOSE [mGy]: "<<G4endl;	
+
+	//CLAUDE->
+	G4cout<<"Local dose [mGy] on the central axes: mean over the central "
+	      <<"transversal voxel block; error assumes independent voxels"<<G4endl;
+	PrintAxisProfile("z", nZ, voxelWidthZ, profDoseZ, profDoseZ2, (hiX-loX+1)*(hiY-loY+1), n, conversion);
+	PrintAxisProfile("y", nY, voxelWidthY, profDoseY, profDoseY2, (hiX-loX+1)*(hiZ-loZ+1), n, conversion);
+	PrintAxisProfile("x", nX, voxelWidthX, profDoseX, profDoseX2, (hiY-loY+1)*(hiZ-loZ+1), n, conversion);
+	//END CLAUDE.......
+
 	//G4cout<<"z-axis"<<G4endl;
 	//G4cout<<"BEGIN_DATA"<<G4endl;
 	//vD.err is in %!!! errsum shoud be (in %): 100.0*SQRT(SUM(vD.err*vD.dose/100.0)^2)/SUM(vD.dose)
+	/*
+	//CLAUDE->
 	for (G4double z = minZ; z<=maxZ; z=z+voxelWidthZ){//1.0){//1 mm increment
 		sum = 0.0;errsum=0.0;
 		for(int i = 0; i < nmm; i++) {
@@ -521,17 +618,20 @@ G4cout<<" y = "<<y<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 		centerX.push_back(x);
 		finalProfileX.push_back(sum);
-	}
+	}*/
 	//G4cout<<"END_DATA"<<G4endl;
+
+	
 	G4cout<<"---------------------------------------------------------------------------"<<G4endl;
 	G4cout<<"Renormalized dose profile, i.e. SUM(proj_x)=SUM(proj_y)=SUM(proj_z)=total dose, [mGy]: "<<G4endl;	
 	//===========
 	G4cout<<"x-axis"<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
-	double dummy=0.0;double tdose = totalDose*conversion/gray;
+	double dummy=0.0;//double tdose = totalDose*conversion/gray;
 	for(int x = 0; x < nX; x++) {
+		if (projx[x] == 0.0) continue;//contiunue loop by ignoring code below this line!
 		dummy = dummy +projx[x]*conversion/gray;
-		if (projx[x]!=0)
+		//if (projx[x]!=0)
 			G4cout<<xcoord[x]<<" "<<projx[x]*conversion/gray<<G4endl;
 	}
 	//G4cout<<" DUMMYx = "<<dummy<<"; tdose= "<<tdose<<G4endl;
@@ -541,8 +641,9 @@ G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
 	dummy=0.0;
 	for(int y = 0; y < nY; y++) {
+		if (projy[y] == 0.0) continue;
 		dummy = dummy +projy[y]*conversion/gray;
-		if (projy[y]!=0)
+		//if (projy[y]!=0)
 			G4cout<<ycoord[y]<<" "<<projy[y]*conversion/gray<<G4endl;
 	}
 	//G4cout<<" DUMMYy = "<<dummy<<"; tdose= "<<tdose<<G4endl;
@@ -552,8 +653,9 @@ G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
 	dummy=0.0;
 	for(int z = 0; z < nZ; z++) {
+		if (projz[z] == 0.0) continue;
 		dummy = dummy +projz[z]*conversion/gray;
-		if (projz[z]!=0)
+		//if (projz[z]!=0)
 			G4cout<<zcoord[z]<<" "<<projz[z]*conversion/gray<<G4endl;
 	}
 	//G4cout<<" DUMMYz = "<<dummy<<"; tdose= "<<tdose<<G4endl;//OK!!

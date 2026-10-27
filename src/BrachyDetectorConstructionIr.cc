@@ -83,10 +83,11 @@ void BrachyDetectorConstructionIr::ConstructIridium(G4VPhysicalVolume* mother)
   G4Material* iridiumMat = pMat -> GetMat("Iridium");
 
   // Capsule main body
+  //inner radius 0, outer radius 0.55mm, half lenth (on z axis) 3.725mm, start angle 0, end angle 360 deg (complete cylinder) 
   capsule = new G4Tubs("Capsule",0,0.55*mm,3.725*mm,0.*deg,360.*deg);
   capsuleLog = new G4LogicalVolume(capsule,capsuleMat,"CapsuleLog");
   capsulePhys = new G4PVPlacement(0,
-                                 G4ThreeVector(0,0,-1.975*mm),
+                                 G4ThreeVector(0,0,0),//at 0 now!!G4ThreeVector(0,0,-1.975*mm),//centered at z=-1.975? relative to mother
                                  "CapsulePhys",
                                  capsuleLog,
                                  mother,
@@ -94,6 +95,8 @@ void BrachyDetectorConstructionIr::ConstructIridium(G4VPhysicalVolume* mother)
                                  0);
 
   // Capsule tip
+  ////inner radius 0 (full sphere not a shell), total (outer) radius 0.55mm, start angle on x-y plane 0, end angle on x-y plane 360 deg (complete circle),
+  //start polar angle on z 0 (start from north pole), end polar angle 90 =>halfsphere! 
   capsuleTip = new G4Sphere("CapsuleTipIridium",
                             0.*mm,
                             0.55*mm,
@@ -106,18 +109,19 @@ void BrachyDetectorConstructionIr::ConstructIridium(G4VPhysicalVolume* mother)
                                       capsuleMat,
                                       "CapsuleTipIridumLog");
   capsuleTipPhys = new G4PVPlacement(0,
-                                     G4ThreeVector(0.,0.,1.75*mm),
+                                     G4ThreeVector(0.,0.,3.725*mm),   //correct now...it is a tip! G4ThreeVector(0.,0.,1.75*mm),//1.75???
                                      "CapsuleTipIridiumPhys",
                                      capsuleTipLog,
                                      mother,
                                      false,
                                      0);
 
-  // Iridium core
+  // Iridium core - inner radius 0, outer radius 0.3mm, half lenth (on z axis) 1.75mm, start angle 0, end angle 360 deg (complete cylinder) 
   iridiumCore = new G4Tubs("IrCore",0,0.30*mm,1.75*mm,0.*deg,360.*deg);
   iridiumCoreLog = new G4LogicalVolume(iridiumCore,
                                        iridiumMat,
                                        "IridiumCoreLog");
+  //placement rot mstrix 0 (no ratstion) placement of center: G4ThreeVector ->at center relative to capsulePhys
   iridiumCorePhys = new G4PVPlacement(0,
                                       G4ThreeVector(),
                                       "IridiumCorePhys",

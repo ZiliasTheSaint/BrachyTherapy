@@ -31,6 +31,7 @@
 
 #include "G4VPrimitiveScorer.hh"
 #include "G4THitsMap.hh"
+#include <map>
 
 class PSDoseDeposition2Core : public G4VPrimitiveScorer
 {
@@ -38,6 +39,9 @@ public:
   PSDoseDeposition2Core(G4String name, G4int depth=0);
   PSDoseDeposition2Core(G4String name, const G4String& unit, G4int depth=0);
   virtual ~PSDoseDeposition2Core();
+
+public:
+  static std::map<G4String,G4double> edepByMaterial;
   
 protected: // with description
       virtual G4bool ProcessHits(G4Step*,G4TouchableHistory*);

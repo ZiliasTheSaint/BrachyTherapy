@@ -46,6 +46,8 @@
 #include "G4UIcmdWith3VectorAndUnit.hh"
 #include "G4UIcmdWithADoubleAndUnit.hh"
 
+#include "G4UImanager.hh"
+
 BrachyDetectorMessenger::BrachyDetectorMessenger( BrachyDetectorConstruction* Det): detector(Det)
 { 
   detectorDir = new G4UIdirectory("/phantom/");
@@ -110,6 +112,12 @@ void BrachyDetectorMessenger::SetNewValue(G4UIcommand* command,G4String newValue
      { 
        detector -> SelectBrachytherapicSeed(newValue); 
        detector -> SwitchBrachytherapicSeed();
+
+	   // spectrul de fotoni trebuie sa urmeze geometria (Leipzig foloseste spectrul Ir)
+	   //Coerenta /source/switch - /primary/energy
+       const G4String spectrum = (newValue == "Iodium") ? "Iodium" : "Iridium";
+       G4UImanager::GetUIpointer() -> ApplyCommand("/primary/energy " + spectrum);
+	   //Linia /primary/energy Iodium din macro devine redundanta, dar inofensiva.....keep it for spring boot (to not alter it just for this)!!!!
       }
    }
 

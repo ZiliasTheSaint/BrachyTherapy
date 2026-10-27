@@ -33,6 +33,8 @@
 #include "G4UnitsTable.hh"
 #include "EventAction.hh"
 
+std::map<G4String, double> PSDoseDeposition2Core::edepByMaterial;
+
 PSDoseDeposition2Core::PSDoseDeposition2Core(G4String name, G4int depth)
 :G4VPrimitiveScorer(name,depth),HCID(-1)
 {
@@ -55,19 +57,29 @@ G4bool PSDoseDeposition2Core::ProcessHits(G4Step* aStep,G4TouchableHistory*)
   G4double edep = aStep->GetTotalEnergyDeposit();
   if ( edep == 0. ) return FALSE;
 
+  //CLAUDE -> dose must be by weight
+  const G4StepPoint* pre = aStep->GetPreStepPoint();
+  const G4double weight  = pre->GetWeight();
+
+  //test
+  edepByMaterial[pre->GetMaterial()->GetName()] += weight*edep;
+  //===============
+
   G4int idx = ((G4TouchableHistory*)
 	       (aStep->GetPreStepPoint()->GetTouchable()))
                ->GetReplicaNumber(indexDepth);
   G4double cubicVolume = ComputeVolume(aStep, idx);
-
-
   G4double density = aStep->GetTrack()->GetStep()->GetPreStepPoint()->GetMaterial()->GetDensity();
-  G4double dose    = edep / ( density * cubicVolume );
-  dose *= aStep->GetPreStepPoint()->GetWeight(); 
+
+  //G4double dose    = edep / ( density * cubicVolume );//correct
+  //dose *= aStep->GetPreStepPoint()->GetWeight(); //correct
+  //CLAUDE->
+  G4double dose    = weight*edep / ( density * cubicVolume );//1 line!!!!!!!!!!!!!
+
   //dose = dose * dose;//square!!!!!!!!!!!!!!!!!!!!!!!!!!!WORKS; if commented =>we get exactly the dose!!!!!
   //Hmm..not per event but per Step!!!! Want per event!!!!
   //it is not intended for stat!!!!
-  G4int  index = GetIndex(aStep);
+  G4int  index = GetIndex(aStep);//execute GetIndex implemented in PSDeposition2 class!!!!!!!using polymorphism
   EvtMap->add(index,dose);  
   //////
   /*const G4VTouchable* touchable = aStep->GetPreStepPoint()->GetTouchable();
@@ -77,8 +89,10 @@ G4bool PSDoseDeposition2Core::ProcessHits(G4Step* aStep,G4TouchableHistory*)
   index =  i*fNj*fNk+j*fNk+k;*/
   /////////
   EventAction::Fill(index,dose);//that should do the trick!
-  EventAction::FillEnergy(index,edep);
-  return TRUE;
+  //CLAUDE->EventAction::FillEnergy(index,edep);
+  EventAction::FillEnergy(index,weight*edep);
+  //return TRUE;
+  return true;
 }
 
 void PSDoseDeposition2Core::Initialize(G4HCofThisEvent* HCE)

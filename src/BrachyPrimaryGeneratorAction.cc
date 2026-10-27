@@ -75,7 +75,8 @@ void BrachyPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 
 void BrachyPrimaryGeneratorAction::SwitchEnergy(G4String sourceChoice)
 {
-  G4int flag = 0;
+	//as it is now, scurge factory-ul vechi pentru orice alegere în afara de Iodium....no delete pointer!!!
+  /*G4int flag = 0;
 
   // Switch the energy spectrum of the photons delivered by the radiative source	
   if (sourceChoice == "Iodium")
@@ -90,5 +91,12 @@ void BrachyPrimaryGeneratorAction::SwitchEnergy(G4String sourceChoice)
       break;
     default:   
       factory = new BrachyFactoryIr; 
-    }      
+    }   */
+
+  BrachyFactory* newFactory = 0;
+  if (sourceChoice == "Iodium") newFactory = new BrachyFactoryI();
+  else                          newFactory = new BrachyFactoryIr();
+
+  delete factory;
+  factory = newFactory;
 }

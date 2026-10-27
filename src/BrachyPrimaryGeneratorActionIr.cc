@@ -71,14 +71,20 @@ void BrachyPrimaryGeneratorActionIr::GeneratePrimaries(G4Event* anEvent)
   particleGun -> SetParticleDefinition(pParticle);
  
   //  Random generation of gamma source point inside the Iridium core
+  // Miez: cilindru r = 0.30 mm, semilungime 1.75 mm, centrat in (0,0,0) now!!!
+  const G4double coreHalfLength = 1.75*mm;
+
   G4double x,y,z;
   G4double radius = 0.30*mm;
   do{
-    x = (G4UniformRand()-0.5)*(radius)/0.5;
-    y = (G4UniformRand()-0.5)*(radius)/0.5;
+    //x = (G4UniformRand()-0.5)*(radius)/0.5;
+    //y = (G4UniformRand()-0.5)*(radius)/0.5;
+	  x = (2.0*G4UniformRand() - 1.0)*radius;
+	  y = (2.0*G4UniformRand() - 1.0)*radius;
   }while(x*x+y*y > radius*radius);
  
-  z = (G4UniformRand()-0.5)*1.75*mm/0.5 -1.975*mm  ;
+  //z = (G4UniformRand()-0.5)*1.75*mm/0.5 -1.975*mm  ;
+  z = (2.0*G4UniformRand() - 1.0)*coreHalfLength;
 
   G4ThreeVector position(x,y,z);
   particleGun -> SetParticlePosition(position);

@@ -83,6 +83,7 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
   G4Colour  lblue   (0.0, 0.0, .75);
 
   // Air tub
+  //inner radius 0, outer radius 0.4mm, half lenth (on z axis) 1.84mm, start angle 0, end angle 360 deg (complete cylinder) 
   G4Tubs* defaultTub = new G4Tubs("DefaultTub",0.*mm, 0.40*mm, 1.84*mm, 0.*deg, 360.*deg);
   G4LogicalVolume* defaultTubLog = new G4LogicalVolume(defaultTub,air,"DefaultTub_Log");
   G4VPhysicalVolume* defaultTubPhys = new G4PVPlacement(0,
@@ -93,6 +94,7 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
                                       false,
                                       0); 
   //  Capsule main body ...
+  //inner radius 0.35mm, outer radius 0.4mm, half lenth (on z axis) 1.84mm, start angle 0, end angle 360 deg (complete cylinder)
   G4double capsuleR = 0.35*mm;
   G4Tubs* capsule = new G4Tubs("Capsule", capsuleR,0.40*mm,1.84*mm,0.*deg,360.*deg);
   G4LogicalVolume* capsuleLog = new G4LogicalVolume(capsule,titanium,"CapsuleLog");
@@ -104,6 +106,8 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
                                   false,
                                   0);
   // Capsule tips
+  ////inner radius 0 (full sphere not a shell), total (outer) radius 0.4mm, start angle on x-y plane 0, end angle on x-y plane 360 deg (complete circle),
+  //start polar angle on z 0 (start from north pole), end polar angle 90 =>halfsphere!
   G4Sphere* capsuleTip = new G4Sphere("CapsuleTip",
                             0.*mm,
                             0.40*mm,
@@ -113,7 +117,7 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
                             90.*deg);
   G4LogicalVolume* capsuleTipLog = new G4LogicalVolume(capsuleTip,titanium,"CapsuleTipLog");
   capsuleTipPhys1 = new G4PVPlacement(0,
-                                      G4ThreeVector(0.,0.,1.84*mm),
+                                      G4ThreeVector(0.,0.,1.84*mm),//placement on top...correct
                                       "CapsuleTipPhys1",
                                       capsuleTipLog,
                                       mother,
@@ -123,7 +127,7 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
   G4RotationMatrix* rotateMatrix = new G4RotationMatrix();
   rotateMatrix -> rotateX(180.0*deg);
   capsuleTipPhys2 = new G4PVPlacement(rotateMatrix, 
-                                      G4ThreeVector(0,0,-1.84*mm),
+                                      G4ThreeVector(0,0,-1.84*mm),//on bottom rotated to south, correct
                                       "CapsuleTipPhys2",
                                       capsuleTipLog,
                                       mother,
@@ -131,6 +135,7 @@ void BrachyDetectorConstructionI::ConstructIodium(G4VPhysicalVolume* mother)
                                       0);
  
   // Radiactive core ...
+  //inner radius 0.0855mm, outer radius 0.35mm, half lenth (on z axis) 1.75mm, start angle 0, end angle 360 deg (complete cylinder)
   G4Tubs* iodiumCore = new G4Tubs("ICore",0.085*mm,0.35*mm,1.75*mm,0.*deg,360.*deg);
   G4LogicalVolume* iodiumCoreLog = new G4LogicalVolume(iodiumCore,iodium,"iodiumCoreLog");
   iodiumCorePhys = new G4PVPlacement(0,

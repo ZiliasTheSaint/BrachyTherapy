@@ -48,7 +48,13 @@ public:
   virtual ~PSDoseDeposition2();
   
   protected: 
-      virtual G4int GetIndex(G4Step*);
+      virtual G4int GetIndex(G4Step*);//tell the PSDoseDeposition2Core to tell G4VPrimitiveScorer how to get mesh indeces!!!
+	  //in cpp avem polymorphism dinamic (late binding) care foloseste o tabela ascunsa virtual table vtable.
+	  //G4VPrimitiveScorer a declarat GetIndex cu virtual, adica se asteapta a fi implementata, a creat o regula in memorie pentru toate clasele care o vor mosteni!
+
+	  //Atunci cand in PSDoseDeposition2Core se face G4int index = GetIndex(aStep); se parcurg pasii:
+	  //calculatorul se uita la obiectul curent (this), citeste vtable atasata,  vede ca in dreptul numelui GetIndex e adresa codului scris in PSDoseDeposition2
+	  //astfel va executa acel cod!
 
   private:
       G4int fDepthi, fDepthj, fDepthk;
