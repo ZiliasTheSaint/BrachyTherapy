@@ -139,10 +139,20 @@ just dummy it...do nothing!!!!
 */
 void BrachyDetectorConstruction::UpdatePhantomSize(G4double hx, G4double hy, G4double hz)
 {
+	if (!Phantom) return;                       // geometria nu e construita inca
+	if (hx > worldSizeX || hy > worldSizeY || hz > worldSizeZ)
+    G4Exception("DetectorConstruction::UpdatePhantomSize()", "Etherapy001", FatalException,
+                "The phantom (mesh) does not fit in the world volume.");
+
     // Actualizam variabilele interne cu dimensiunile primite de la mesh
     phantomSizeX = hx;
     phantomSizeY = hy;
     phantomSizeZ = hz;
+
+	Phantom->SetXHalfLength(hx);                // solidul real
+	Phantom->SetYHalfLength(hy);
+	Phantom->SetZHalfLength(hz);
+	phantomMass = phantomDensity * 8.0*hx*hy*hz;
 
     // NOTIFICARE CRITICA: Ii spunem lui Geant4 ca geometria fizica s-a modificat
     G4RunManager::GetRunManager()->GeometryHasBeenModified();
