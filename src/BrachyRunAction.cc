@@ -68,16 +68,38 @@ void BrachyRunAction::PrintAxisProfile(const char* axisName, G4int nBins, G4doub
 {
   for (G4int i = 0; i < nBins; i++) {
     //if (sum[i] == 0.0) continue;//contiunue loop by ignoring code below this line!
+	//comment this if want all bins!!!!
     const G4double coord    = (-nBins + 1 + 2*i)*voxelWidth/2;
     const G4double meanDose = sum[i]/nVoxelsInBlock*localConversion/gray;
+	//const G4double meanDose = sum[i]*localConversion/gray;//better to use mean of adjacents blocks!
     const G4double err      = basicAnalyze(sum[i], sum2[i], nEvents);
+
+	totalDoseProfile = totalDoseProfile + meanDose;//just for central PROFILES!!
+	//Adunarea profilelor (profDoseZ, profDoseY, profDoseX) nu va fi niciodata egala cu doza totala 
+	//din FillDoseTotal, din cauza filtrelor geometrice (cx, cy, cz).
+	//Prin aceste profile, tu nu calculezi doza totala din tot fantomul, ci doar doza pe niste fasii
+	//inguste (linii/canale) care trec prin centrul volumului.
+	//outside range...se ignora si in plus inside se dubleaza ba chiar tripleaza!!!!
+	//overall va fi mai mica ca doza totala reala!!!!!
+
+	if (axisName=="x"){
+		xcoordProfile.push_back(coord);
+		projxProfile.push_back(meanDose);
+	} else if (axisName=="y"){
+		ycoordProfile.push_back(coord);
+		projyProfile.push_back(meanDose);
+	} else if (axisName=="z"){
+		zcoordProfile.push_back(coord);
+		projzProfile.push_back(meanDose);
+	}
+
     G4cout << " " << axisName << "= " << coord/mm << " voxelDose = "
            << meanDose << " +/- " << err << " % " << G4endl;
   }
 }
 
 BrachyRunAction::BrachyRunAction()
-	: totalDoseRun(0.), totalDoseRun2(0.), totalEdepRun(0.), totalEdepRun2(0.)
+	: totalDoseRun(0.), totalDoseRun2(0.), totalEdepRun(0.), totalEdepRun2(0.), totalDoseProfile(0.)
 {
 		// add new units for dose 
   const G4double milligray = 1.e-3*gray;
@@ -513,15 +535,13 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	renorm = voxelMass/phantomMass is based on voxelMass which is voxelMaterialDensity*voxelWidthX*voxelWidthY*voxelWidthZ; and voxelMaterialDensity = phantom->getPhantonDensity();
 	but is false....voxelMaterialDensity is not universal we have capsule inside where 67.434 % of edep is stored. So despite most of voxels has phantom density, most of dose is 
 	inside caspsule! Therefore this way of phantom dose estimation is wrong.
-
-	The only way for graph...to not blow up at 10^ Gy around center is to scale to phantom mass...as if all materials are phantom, but secretelly know
-	at center we have the capsule with huge capsule dose inside!!!
-
+	
+	because realtotalDose = total_edep/phantomMass,
 	The only way: phantomDose = realtotalDose*phantomWeigthByEdep!!!!!!!!!!!!!!!!!
 	*/
 
 
-	double conversion = 1000.0*renorm*NumberOfQuantaEmitted/n;//NumberOfQuantaSimulated;renorm = voxelMass/phantomMass
+	double conversion = 1000.0*NumberOfQuantaEmitted/n;//NumberOfQuantaSimulated;renorm = voxelMass/phantomMass
 	//double conversion2 = 1000.0*NumberOfQuantaEmitted/n;//for real dose no renorm!!!
 	double conversion2 = 1000.0*phantomWeigthByEdep*NumberOfQuantaEmitted/n;//1000 is Gy -> mGy
 	
@@ -547,6 +567,11 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	PrintAxisProfile("y", nY, voxelWidthY, profDoseY, profDoseY2, (hiX-loX+1)*(hiZ-loZ+1), n, conversion);
 	PrintAxisProfile("x", nX, voxelWidthX, profDoseX, profDoseX2, (hiY-loY+1)*(hiZ-loZ+1), n, conversion);
 	//END CLAUDE.......
+
+	//totalDose versus totalDoseRun
+	G4cout<<"total dose in all voxels method 1 [mGy]: "<<totalDose*conversion/gray<<G4endl;
+	G4cout<<"total dose in all voxels method 2 [mGy]: "<<totalDoseRun*conversion/gray<<" +/- "<<totalerr<<" % "<<G4endl;
+	G4cout<<"total dose in all CENTRAL profiles [mGy]: "<<totalDoseProfile <<G4endl;//already *conversion/gray inside Print
 
 	//G4cout<<"z-axis"<<G4endl;
 	//G4cout<<"BEGIN_DATA"<<G4endl;
@@ -623,42 +648,45 @@ G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 
 	
 	G4cout<<"---------------------------------------------------------------------------"<<G4endl;
-	G4cout<<"Renormalized dose profile, i.e. SUM(proj_x)=SUM(proj_y)=SUM(proj_z)=total dose, [mGy]: "<<G4endl;	
+	G4cout<<"Dose profile on central axis [mGy]: "<<G4endl;	
 	//===========
 	G4cout<<"x-axis"<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
-	double dummy=0.0;//double tdose = totalDose*conversion/gray;
+	
 	for(int x = 0; x < nX; x++) {
-		if (projx[x] == 0.0) continue;//contiunue loop by ignoring code below this line!
-		dummy = dummy +projx[x]*conversion/gray;
+		//if (projxProfile[x] == 0.0) continue;//if (projx[x] == 0.0) continue;//contiunue loop by ignoring code below this line!
+		
 		//if (projx[x]!=0)
-			G4cout<<xcoord[x]<<" "<<projx[x]*conversion/gray<<G4endl;
+			//G4cout<<xcoord[x]<<" "<<projx[x]*conversion/gray<<G4endl;
+		G4cout<<xcoordProfile[x]<<" "<<projxProfile[x]<<G4endl;
 	}
-	//G4cout<<" DUMMYx = "<<dummy<<"; tdose= "<<tdose<<G4endl;
+	
 	G4cout<<"END_DATA"<<G4endl;
 
 	G4cout<<"y-axis"<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
-	dummy=0.0;
+	
 	for(int y = 0; y < nY; y++) {
-		if (projy[y] == 0.0) continue;
-		dummy = dummy +projy[y]*conversion/gray;
+		//if (projyProfile[y] == 0.0) continue;//if (projy[y] == 0.0) continue;
+		
 		//if (projy[y]!=0)
-			G4cout<<ycoord[y]<<" "<<projy[y]*conversion/gray<<G4endl;
+			//G4cout<<ycoord[y]<<" "<<projy[y]*conversion/gray<<G4endl;
+		G4cout<<ycoordProfile[y]<<" "<<projyProfile[y]<<G4endl;
 	}
-	//G4cout<<" DUMMYy = "<<dummy<<"; tdose= "<<tdose<<G4endl;
+
 	G4cout<<"END_DATA"<<G4endl;
 
 	G4cout<<"z-axis"<<G4endl;
 	G4cout<<"BEGIN_DATA"<<G4endl;
-	dummy=0.0;
+	
 	for(int z = 0; z < nZ; z++) {
-		if (projz[z] == 0.0) continue;
-		dummy = dummy +projz[z]*conversion/gray;
+		//if (projzProfile[z] == 0.0) continue;//if (projz[z] == 0.0) continue;
+		
 		//if (projz[z]!=0)
-			G4cout<<zcoord[z]<<" "<<projz[z]*conversion/gray<<G4endl;
+			//G4cout<<zcoord[z]<<" "<<projz[z]*conversion/gray<<G4endl;
+		G4cout<<zcoordProfile[z]<<" "<<projzProfile[z]<<G4endl;
 	}
-	//G4cout<<" DUMMYz = "<<dummy<<"; tdose= "<<tdose<<G4endl;//OK!!
+	
 	G4cout<<"END_DATA"<<G4endl;
 }
 

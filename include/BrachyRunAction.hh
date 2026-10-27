@@ -82,6 +82,11 @@ private:
 	G4double totalEdepRun;
 	G4double totalEdepRun2;
 
+	G4double totalDoseProfile;
+	std::vector<double> projyProfile;std::vector<double> ycoordProfile;
+	std::vector<double> projxProfile;std::vector<double> xcoordProfile;
+	std::vector<double> projzProfile;std::vector<double> zcoordProfile;
+
 	void PrintAxisProfile(const char* axisName, G4int nBins, G4double voxelWidth,
                         const std::vector<G4double>& sum, const std::vector<G4double>& sum2,
                         G4int nVoxelsInBlock, G4int nEvents, G4double localConversion);
