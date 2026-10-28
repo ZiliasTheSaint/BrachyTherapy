@@ -79,7 +79,11 @@ ScoreQuantityMessenger::~ScoreQuantityMessenger()
 //Other commands like /score/mesh/ are specific to other class, G4ScoringMessenger with is own SetNewValue
 void ScoreQuantityMessenger::SetNewValue(G4UIcommand * command,G4String newVal)
 {
-	//G4cout<<"ANA ARE MERE!"<<G4endl;//OK!
+	// comenzile care nu sunt ale noastre: le preia clasa de baza
+	if (command != qdoseDep2Cmd && command != mBinCmd) {
+		G4ScoreQuantityMessenger::SetNewValue(command, newVal);
+		return;
+	}
 
 	G4VScoringMesh* mesh = fSMan->GetCurrentMesh();
       if(!mesh)

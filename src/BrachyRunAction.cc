@@ -64,8 +64,18 @@ void BrachyRunAction::PrintAxisProfile(const char* axisName, G4int nBins, G4doub
                                        const std::vector<G4double>& sum,
                                        const std::vector<G4double>& sum2,
                                        G4int nVoxelsInBlock, G4int nEvents,
-                                       G4double localConversion)
+                                       G4double localConversion
+									   //added	
+									   ,double& min, double& max
+									   //below really not needed!
+									   //,std::vector<G4double>& coordOut, std::vector<G4double>& doseOut
+									   )
 {
+  min=100.;
+  max=0.;
+  //coordOut.clear();
+  //doseOut.clear();
+
   for (G4int i = 0; i < nBins; i++) {
     //if (sum[i] == 0.0) continue;//contiunue loop by ignoring code below this line!
 	//comment this if want all bins!!!!
@@ -82,7 +92,8 @@ void BrachyRunAction::PrintAxisProfile(const char* axisName, G4int nBins, G4doub
 	//outside range...se ignora si in plus inside se dubleaza ba chiar tripleaza!!!!
 	//overall va fi mai mica ca doza totala reala!!!!!
 
-	if (axisName=="x"){
+	//axisName=="x" compares pointers not arrays...may work or not depending on compiler!. Better universal way:
+	/*if (axisName=="x"){
 		xcoordProfile.push_back(coord);
 		projxProfile.push_back(meanDose);
 	} else if (axisName=="y"){
@@ -91,10 +102,21 @@ void BrachyRunAction::PrintAxisProfile(const char* axisName, G4int nBins, G4doub
 	} else if (axisName=="z"){
 		zcoordProfile.push_back(coord);
 		projzProfile.push_back(meanDose);
+	}*/
+
+	//coordOut.push_back(coord);
+    //doseOut.push_back(meanDose);
+
+	if (err<min && err!=0.){
+		min=err;
+	}
+	if (err>max){
+		max=err;
 	}
 
-    G4cout << " " << axisName << "= " << coord/mm << " voxelDose = "
-           << meanDose << " +/- " << err << " % " << G4endl;
+    //G4cout << " " << axisName << "= " << coord/mm << " voxelDose = "
+           //<< meanDose << " +/- " << err << " % " << G4endl;
+	G4cout<<coord<<" "<<meanDose<<G4endl;
   }
 }
 
@@ -322,6 +344,65 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	G4double phantomMass = phantom->GetPhantomMass();//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	G4double renorm = voxelMass/phantomMass;//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+	//much simpler and faster than 300 x 3 for loop:
+	for (std::map<G4int,G4double>::const_iterator it = dose.begin(); it != dose.end(); ++it){
+		const G4int idx = it->first;
+		if (idx < 0 || idx >= nX*nY*nZ) {
+			G4Exception("RunAction::totalRunEnergyDeposit()", "Etherapy002", JustWarning,
+			            "Voxel index outside the mesh: check the index mapping of PSDoseDeposition2.");
+			continue;
+		}
+
+		//since idx = x*nY*nZ +y*nZ+z; let  nY = 4, nZ = 5 so ny x nZ is 20 elements. Let idx = 43
+		//z = 43 % 5 = 3 (idx % nZ); y = (43 / 5) % 4 = 8 % 4 = 0; x = 43 / (4 × 5) = 43 / 20 = 2
+		//rebuild: idx = 2*4*5+0*5+3 = 43 corect. 43 = 2*20+3. Rest si integer division.
+		//asume z=3,y=1,x=2 cu nY=4,nZ=5: idx = 2*4*5+1*5+3=48. 48/20 = 2. Restul e 1*5+3!!!!
+		//restul impartirii lui idx la nZ (numarul total de elemente de pe z) ne da pozitia lui z!
+
+		//idx e construit: Pui toti z pana la nZ. Fixeaza aceasta axa ca axa camerelor. Pozitii ocupate: nZ.
+		// Axa etajelor incepe de la 0 si se termina la nY-1 avand ny etaje (fiecare cu nZ pozitii)
+		//ca sa ajungi la etajul y inseamna ca ai lasat in urma y etaje complete, adica nZ*y pozitii.
+		//similar axa blocurilor x. Ca sa ajungi la blocul x ai lasat in urma x*nY*nZ pozitii.
+		//codificare idx = x*nY*nZ +y*nZ+z tocmai pentru a "abuza" de impartiri intregi si rest!
+		//Daca vreau x din idx, observa ca idx = x*CEVA + REST, unde CEVA = nY*nZ e urias comparat cu restul de y*nZ+z
+		//deci impartirea intreaga idx/(nY*nZ) ne da x. Modulul ne da y*nZ+z = mod(idx/(nY*nZ)) sau idx%(nY*nZ).
+		//Similar impartirea intreaga la nZ ne da y iar modulul pe z. z = (idx%(nY*nZ)) % nZ. 
+		//Matematic (idx%(nY*nZ)) % nZ e echivalent cu idx%nZ pentru ca:
+		//pentru ca (y*nZ+z)%nZ = (x*nY*nZ+y*nZ+z)=z....(y*nZ)%nZ si (x*nY*nZ)%nZ sunt ambele 0!
+		//similar y = (idx%(nY*nZ))/nZ ceea ce e echivalent cu y = (idx/nZ) % nY pentru ca:
+		//        (y*nZ+z)/nZ = [(x*nY*nZ+y*nZ+z)/nZ] %nY=(x*nY+y)%nY = y
+
+		const G4int x =  idx/(nY*nZ);
+		const G4int y = (idx/nZ) % nY;
+		const G4int z =  idx % nZ;
+
+		const G4double ddep  = it->second;
+		const G4double ddep2 = dose2.find(idx)->second;
+
+		//edep in same for!!!!
+		const std::map<G4int,G4double>::const_iterator e  = EDEP.find(idx);
+		const std::map<G4int,G4double>::const_iterator e2 = EDEP2.find(idx);
+		if (e != EDEP.end() && e2 != EDEP2.end()) {
+			const G4double edep  = e->second;    // suma pe evenimente a energiei in voxel
+			const G4double edep2 = e2->second;   // suma patratelor pe evenimente
+			
+			realtotalDose = realtotalDose+edep;
+			realtotalDose2 = realtotalDose2+edep2;
+		}
+
+		totalDose=totalDose+ddep;//total voxel doses
+		totalDose2=totalDose2+ddep2;
+		
+		const G4bool cx = (x >= loX && x <= hiX);
+		const G4bool cy = (y >= loY && y <= hiY);
+		const G4bool cz = (z >= loZ && z <= hiZ);
+		if (cx && cy) { profDoseZ[z] += ddep; profDoseZ2[z] += ddep2; }//central z profile
+		if (cx && cz) { profDoseY[y] += ddep; profDoseY2[y] += ddep2; }//central y profile
+		if (cy && cz) { profDoseX[x] += ddep; profDoseX2[x] += ddep2; }//central x profile
+		
+	}
+
+	/*
 	for(int x = 0; x < nX; x++) {
 		for(int y = 0; y < nY; y++) {   
 			for(int z = 0; z < nZ; z++) {
@@ -364,87 +445,87 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 
 					//central axis dose
 					
-					/* Claude->
-					if (
-						((x==nX/2-1)&& (y==nY/2-1)) ||//((x==149)&& (y==149)) ||
-						((x==nX/2-1)&& (y==nY/2)) ||//((x==149)&& (y==150)) ||
-						((x==nX/2)&& (y==nY/2-1)) ||//((x==150)&& (y==149)) ||
-						((x==nX/2)&& (y==nY/2))		//((x==150)&& (y==150))
-						||
-						((x==nX/2-1)&& (y==nY/2+1))||
-						((x==nX/2)&& (y==nY/2+1))||
-						((x==nX/2+1)&& (y==nY/2+1))||
-						((x==nX/2+1)&& (y==nY/2))||
-						((x==nX/2+1)&& (y==nY/2-1))
+					// Claude->
+					//if (
+					//	((x==nX/2-1)&& (y==nY/2-1)) ||//((x==149)&& (y==149)) ||
+					//	((x==nX/2-1)&& (y==nY/2)) ||//((x==149)&& (y==150)) ||
+					//	((x==nX/2)&& (y==nY/2-1)) ||//((x==150)&& (y==149)) ||
+					//	((x==nX/2)&& (y==nY/2))		//((x==150)&& (y==150))
+					//	||
+					//	((x==nX/2-1)&& (y==nY/2+1))||
+					//	((x==nX/2)&& (y==nY/2+1))||
+					//	((x==nX/2+1)&& (y==nY/2+1))||
+					//	((x==nX/2+1)&& (y==nY/2))||
+					//	((x==nX/2+1)&& (y==nY/2-1))
 
-						) {
+					//	) {
 				
-						if (zz<minZ)minZ=zz;
-						if (zz>maxZ)maxZ=zz;
+					//	if (zz<minZ)minZ=zz;
+					//	if (zz>maxZ)maxZ=zz;
 						
-						voxelDose vD;
-						vD.xc=xx;vD.yc=yy;vD.zc=zz;
-						vD.dose = ddep;
-						vD.err=err;
+					//	voxelDose vD;
+					//	vD.xc=xx;vD.yc=yy;vD.zc=zz;
+					//	vD.dose = ddep;
+					//	vD.err=err;
 						
-						profileZ.push_back(vD);				
-					}
+					//	profileZ.push_back(vD);				
+					//}
 
-					if (
-						((x==nX/2-1)&& (z==nZ/2-1))||//((x==149)&& (z==149))||
-						((x==nX/2-1)&& (z==nZ/2))||//((x==149)&& (z==150))||
-						((x==nX/2)&& (z==nZ/2-1))||//((x==150)&& (z==149))||
-						((x==nX/2)&& (z==nZ/2))//((x==150)&& (z==150))
-						||
-						((x==nX/2-1)&& (z==nZ/2+1))||
-						((x==nX/2)&& (z==nZ/2+1))||
-						((x==nX/2+1)&& (z==nZ/2+1))||
-						((x==nX/2+1)&& (z==nZ/2))||
-						((x==nX/2+1)&& (z==nZ/2-1))
+					//if (
+					//	((x==nX/2-1)&& (z==nZ/2-1))||//((x==149)&& (z==149))||
+					//	((x==nX/2-1)&& (z==nZ/2))||//((x==149)&& (z==150))||
+					//	((x==nX/2)&& (z==nZ/2-1))||//((x==150)&& (z==149))||
+					//	((x==nX/2)&& (z==nZ/2))//((x==150)&& (z==150))
+					//	||
+					//	((x==nX/2-1)&& (z==nZ/2+1))||
+					//	((x==nX/2)&& (z==nZ/2+1))||
+					//	((x==nX/2+1)&& (z==nZ/2+1))||
+					//	((x==nX/2+1)&& (z==nZ/2))||
+					//	((x==nX/2+1)&& (z==nZ/2-1))
 
-						) {
+					//	) {
 			
-						if (yy<minY)minY=yy;
-						if (yy>maxY)maxY=yy;
+					//	if (yy<minY)minY=yy;
+					//	if (yy>maxY)maxY=yy;
 						
-						voxelDose vD;
-						vD.xc=xx;vD.yc=yy;vD.zc=zz;
-						vD.dose = ddep;
-						vD.err=err;
+					//	voxelDose vD;
+					//	vD.xc=xx;vD.yc=yy;vD.zc=zz;
+					//	vD.dose = ddep;
+					//	vD.err=err;
 
-						profileY.push_back(vD);
+					//	profileY.push_back(vD);
 					//G4cout<<"; xc = "<<vD.xc<<"; yc = "<<vD.yc<<"; zc = "<<vD.zc<<"; Edep[keV] = "<<vD.ddep<<G4endl;
 
-					}
+					//}
 
 
-					if (
-						((y==nY/2-1)&& (z==nZ/2-1))||//((y==149)&& (z==149))||
-						((y==nY/2-1)&& (z==nZ/2))||//((y==149)&& (z==150))||
-						((y==nY/2)&& (z==nZ/2-1))||//((y==150)&& (z==149))||
-						((y==nY/2)&& (z==nZ/2))//((y==150)&& (z==150))
-						||
-						((y==nY/2-1)&& (z==nZ/2+1))||
-						((y==nY/2)&& (z==nZ/2+1))||
-						((y==nY/2+1)&& (z==nZ/2+1))||
-						((y==nY/2+1)&& (z==nZ/2))||
-						((y==nY/2+1)&& (z==nZ/2-1))
+					//if (
+					//	((y==nY/2-1)&& (z==nZ/2-1))||//((y==149)&& (z==149))||
+					//	((y==nY/2-1)&& (z==nZ/2))||//((y==149)&& (z==150))||
+					//	((y==nY/2)&& (z==nZ/2-1))||//((y==150)&& (z==149))||
+					//	((y==nY/2)&& (z==nZ/2))//((y==150)&& (z==150))
+					//	||
+					//	((y==nY/2-1)&& (z==nZ/2+1))||
+					//	((y==nY/2)&& (z==nZ/2+1))||
+					//	((y==nY/2+1)&& (z==nZ/2+1))||
+					//	((y==nY/2+1)&& (z==nZ/2))||
+					//	((y==nY/2+1)&& (z==nZ/2-1))
 
-						){
+					//	){
 
-						if (xx<minX)minX=xx;
-						if (xx>maxX)maxX=xx;
+					//	if (xx<minX)minX=xx;
+					//	if (xx>maxX)maxX=xx;
 						
-						voxelDose vD;
-						vD.xc=xx;vD.yc=yy;vD.zc=zz;
-						vD.dose = ddep;
-						vD.err=err;
+					//	voxelDose vD;
+					//	vD.xc=xx;vD.yc=yy;vD.zc=zz;
+					//	vD.dose = ddep;
+					//	vD.err=err;
 		    
-						profileX.push_back(vD);
+					//	profileX.push_back(vD);
 						//G4cout<<"; xc = "<<vD.xc<<"; yc = "<<vD.yc<<"; zc = "<<vD.zc<<
 						//"; Ddep = "<<G4BestUnit(vD.dose, "Dose")<<G4endl;
 
-					}*/
+					//}
 					// profile pe axe: suma pe blocul transversal central-CORRECT!!!!
 					const G4bool cx = (x >= loX && x <= hiX);
 					const G4bool cy = (y >= loY && y <= hiY);
@@ -458,7 +539,7 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 			}//z
 		}//y
 	}//x
-	
+	*/
 	
 	//totalerr = basicAnalyze(totalDose, totalDose2, n);
 	//realtotalerr = basicAnalyze(realtotalDose, realtotalDose2, n);
@@ -561,13 +642,26 @@ void BrachyRunAction::totalRunEnergyDeposit(G4int n){
 	G4cout<<"Voxel center coordinate on a particular central axis and VOXEL DOSE [mGy]: "<<G4endl;	
 
 	//CLAUDE->
-	G4cout<<"Local dose [mGy] on the central axes: mean over the central "
-	      <<"transversal voxel block; error assumes independent voxels"<<G4endl;
-	PrintAxisProfile("z", nZ, voxelWidthZ, profDoseZ, profDoseZ2, (hiX-loX+1)*(hiY-loY+1), n, conversion);
-	PrintAxisProfile("y", nY, voxelWidthY, profDoseY, profDoseY2, (hiX-loX+1)*(hiZ-loZ+1), n, conversion);
-	PrintAxisProfile("x", nX, voxelWidthX, profDoseX, profDoseX2, (hiY-loY+1)*(hiZ-loZ+1), n, conversion);
+	//G4cout<<"Local dose [mGy] on the central axes: mean over the central "
+	  //    <<"transversal voxel block; error assumes independent voxels"<<G4endl;
+	
+	//Populate arrays directly and print results!
+	G4cout<<"x-axis"<<G4endl;
+	G4cout<<"BEGIN_DATA"<<G4endl;
+	PrintAxisProfile("x", nX, voxelWidthX, profDoseX, profDoseX2, (hiY-loY+1)*(hiZ-loZ+1), n, conversion, minRelErrX, maxRelErrX);
+	G4cout<<"END_DATA"<<G4endl;
+	G4cout<<"y-axis"<<G4endl;
+	G4cout<<"BEGIN_DATA"<<G4endl;
+	PrintAxisProfile("y", nY, voxelWidthY, profDoseY, profDoseY2, (hiX-loX+1)*(hiZ-loZ+1), n, conversion, minRelErrY, maxRelErrY);
+	G4cout<<"END_DATA"<<G4endl;
+	G4cout<<"z-axis"<<G4endl;
+	G4cout<<"BEGIN_DATA"<<G4endl;
+	PrintAxisProfile("z", nZ, voxelWidthZ, profDoseZ, profDoseZ2, (hiX-loX+1)*(hiY-loY+1), n, conversion, minRelErrZ, maxRelErrZ);
+	G4cout<<"END_DATA"<<G4endl;
 	//END CLAUDE.......
-
+	G4cout<<"Voxels MIN non null and MAX relative error on X [%]: "<<minRelErrX<<", "<<maxRelErrX<<G4endl;
+	G4cout<<"Voxels MIN non null and MAX relative error on Y [%]: "<<minRelErrY<<", "<<maxRelErrY<<G4endl;
+	G4cout<<"Voxels MIN non null and MAX relative error on Z [%]: "<<minRelErrZ<<", "<<maxRelErrZ<<G4endl;
 	//totalDose versus totalDoseRun
 	G4cout<<"total dose in all voxels method 1 [mGy]: "<<totalDose*conversion/gray<<G4endl;
 	G4cout<<"total dose in all voxels method 2 [mGy]: "<<totalDoseRun*conversion/gray<<" +/- "<<totalerr<<" % "<<G4endl;
@@ -647,7 +741,7 @@ G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 	//G4cout<<"END_DATA"<<G4endl;
 
 	
-	G4cout<<"---------------------------------------------------------------------------"<<G4endl;
+	/*G4cout<<"---------------------------------------------------------------------------"<<G4endl;
 	G4cout<<"Dose profile on central axis [mGy]: "<<G4endl;	
 	//===========
 	G4cout<<"x-axis"<<G4endl;
@@ -687,7 +781,7 @@ G4cout<<" x= "<<x<<" voxelDose = "<<sum<<" +/- "<<errsum<<" % "<<G4endl;
 		G4cout<<zcoordProfile[z]<<" "<<projzProfile[z]<<G4endl;
 	}
 	
-	G4cout<<"END_DATA"<<G4endl;
+	G4cout<<"END_DATA"<<G4endl;*/
 }
 
 

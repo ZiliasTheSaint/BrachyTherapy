@@ -56,7 +56,7 @@ public:
   void FillEnergyTotal(G4double eventEnergy);
 
   G4double basicAnalyze(G4double x, G4double x2, G4int n){
-	  G4double temp=x;G4double temp2=x2;G4int nevents=n;
+	  /*G4double temp=x;G4double temp2=x2;G4int nevents=n;
 	  temp=temp/nevents;temp2=temp2/nevents;
 	  temp2 = temp2 - temp*temp;
 	  if (nevents>1) temp2=temp2/(nevents-1.0);
@@ -67,7 +67,18 @@ public:
 	  if (temp!=0.0){
 	   temp2 = std::min(100.0*temp2/temp,99.9);
       } //else temp2 = 99.9;//no score means no score not necessarly an error!
-	  return temp2;
+	  return temp2;*/
+
+	  //variance x2/(n) - mean^2 can be negative due to roundoff errors!
+	  if (n < 1 || x == 0.0) return 0.0;
+	  
+	  const G4double mean = x/n;
+      G4double var = x2/n - mean*mean;
+      
+	  if (n > 1) var /= (n - 1.0);
+      
+	  const G4double relErr = (var > 0.0) ? 100.0*std::sqrt(var)/std::fabs(mean) : 0.0;//in %!
+      return std::min(relErr, 99.9);//in %!!
   }
 private:
 	void totalRunEnergyDeposit(G4int n);
@@ -83,13 +94,20 @@ private:
 	G4double totalEdepRun2;
 
 	G4double totalDoseProfile;
+
+	double minRelErrX,maxRelErrX,minRelErrY,maxRelErrY,minRelErrZ,maxRelErrZ;
+
 	std::vector<double> projyProfile;std::vector<double> ycoordProfile;
 	std::vector<double> projxProfile;std::vector<double> xcoordProfile;
 	std::vector<double> projzProfile;std::vector<double> zcoordProfile;
 
 	void PrintAxisProfile(const char* axisName, G4int nBins, G4double voxelWidth,
                         const std::vector<G4double>& sum, const std::vector<G4double>& sum2,
-                        G4int nVoxelsInBlock, G4int nEvents, G4double localConversion);
+                        G4int nVoxelsInBlock, G4int nEvents, G4double localConversion
+						,double& min, double& max
+						//not really needed
+						//,std::vector<G4double>& coordOut, std::vector<G4double>& doseOut
+						);
 };
 #endif
 
